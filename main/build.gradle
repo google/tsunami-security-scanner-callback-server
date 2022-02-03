@@ -1,0 +1,29 @@
+plugins {
+    id 'application'
+    id 'com.github.johnrengelman.shadow'
+}
+
+description = 'Tsunami Callback Server: main'
+
+dependencies {
+    compile project(':tcs-common')
+    compile project(':tcs-server')
+    compile project(':tcs-storage')
+    compile deps.flogger
+    compile deps.flogger_google_ext
+    compile deps.guava
+    compile deps.guice
+    compile deps.jcommander
+
+    testCompile deps.junit
+    testCompile deps.truth
+}
+
+application {
+    mainClassName = 'com.google.tsunami.callbackserver.main.TcsMain'
+}
+
+shadowJar {
+    classifier = 'cli'
+    exclude '*.proto'
+}

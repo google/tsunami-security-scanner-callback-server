@@ -1,0 +1,18 @@
+description = 'Tsunami Callback Server: server'
+
+dependencies {
+    compile project(':tcs-common')
+    compile project(':tcs-proto')
+    compile project(':tcs-storage')
+    compile deps.flogger
+    compile deps.flogger_google_ext
+    compile deps.guava
+    compile deps.guice
+    compile deps.javax_inject
+    compile deps.netty_buffer, deps.netty_codec_dns, deps.netty_codec_http, deps.netty_common, deps.netty_transport
+    compile deps.protobuf, deps.protobuf_lite, deps.protobuf_util
+
+    testCompile deps.guava_testlib
+    testCompile deps.junit
+    testCompile deps.truth, deps.truth8, deps.truth_protobuf
+}

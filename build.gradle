@@ -1,0 +1,207 @@
+// Current gradle version 6.5.
+
+plugins {
+    id 'net.ltgt.errorprone' apply false
+}
+
+subprojects {
+    apply plugin: 'java'
+    apply plugin: 'maven-publish'
+    apply plugin: 'idea'
+    apply plugin: "signing"
+
+    apply plugin: 'net.ltgt.errorprone'
+
+    group = 'com.google.tsunami'
+    version = '0.0.1-SNAPSHOT' // Current Tsunami Callback Server version
+
+    repositories {
+        maven { // The google mirror is less flaky than mavenCentral()
+            url 'https://maven-central.storage-download.googleapis.com/repos/central/data/'
+        }
+        mavenCentral()
+        mavenLocal()
+    }
+
+    ext {
+        // All dependency versions.
+        autoValueVersion = '1.7'
+        bouncycastleVersion = '1.64'
+        errorproneVersion = '2.4.0'
+        floggerVersion = '0.5.1'
+        grpcVersion = '1.29.0'
+        guavaVersion = '31.0.1-jre'
+        guiceVersion = '4.2.3'
+        javaxInjectVersion = '1'
+        jcommanderVersion = '1.48'
+        nettyVersion = '4.1.72.Final'
+        protobufVersion = '3.11.4'
+        protocVersion = protobufVersion
+        snakeyamlVersion = '1.26'
+        junitVersion = '4.13'
+        truthVersion = '1.0.1'
+
+        // All Tsunami Callback Server dependencies.
+        deps = [
+                autovalue: "com.google.auto.value:auto-value-annotations:${autoValueVersion}",
+                autovalue_annotation_processor: "com.google.auto.value:auto-value:${autoValueVersion}",
+                bouncycastle_provider: "org.bouncycastle:bcprov-jdk15on:${bouncycastleVersion}",
+                errorprone: "com.google.errorprone:error_prone_annotations:${errorproneVersion}",
+                flogger: "com.google.flogger:flogger:${floggerVersion}",
+                flogger_google_ext: "com.google.flogger:google-extensions:${floggerVersion}",
+                flogger_backend: "com.google.flogger:flogger-system-backend:${floggerVersion}",
+                guava: "com.google.guava:guava:${guavaVersion}",
+                guice: "com.google.inject:guice:${guiceVersion}",
+                guice_assisted: "com.google.inject.extensions:guice-assistedinject:${guiceVersion}",
+                grpc_protobuf: "io.grpc:grpc-protobuf:${grpcVersion}",
+                javax_inject: "javax.inject:javax.inject:${javaxInjectVersion}",
+                jcommander: "com.beust:jcommander:${jcommanderVersion}",
+                netty_buffer: "io.netty:netty-buffer:${nettyVersion}",
+                netty_codec_dns: "io.netty:netty-codec-dns:${nettyVersion}",
+                netty_codec_http: "io.netty:netty-codec-http:${nettyVersion}",
+                netty_common: "io.netty:netty-common:${nettyVersion}",
+                netty_transport: "io.netty:netty-transport:${nettyVersion}",
+                protobuf: "com.google.protobuf:protobuf-java:${protobufVersion}",
+                protobuf_lite: "com.google.protobuf:protobuf-javalite:${protobufVersion}",
+                protobuf_util: "com.google.protobuf:protobuf-java-util:${protobufVersion}",
+                snakeyaml: "org.yaml:snakeyaml:${snakeyamlVersion}",
+
+                // Test dependencies.
+                guava_testlib: "com.google.guava:guava-testlib:${guavaVersion}",
+                junit: "junit:junit:${junitVersion}",
+                truth: "com.google.truth:truth:${truthVersion}",
+                truth8: "com.google.truth.extensions:truth-java8-extension:${truthVersion}",
+                truth_protobuf: "com.google.truth.extensions:truth-proto-extension:${truthVersion}",
+        ]
+    }
+
+    if (rootProject.properties.get('errorProne', true)) {
+        dependencies {
+            errorprone "com.google.errorprone:error_prone_core:${errorproneVersion}"
+            errorproneJavac 'com.google.errorprone:javac:9+181-r4173-1'
+        }
+
+        // Disable ErrorProne for all generated codes.
+        tasks.withType(JavaCompile).configureEach {
+            options.errorprone.disableWarningsInGeneratedCode = false
+            options.errorprone.excludedPaths = '.*/build/generated/.*'
+        }
+    } else {
+        // Disable Error Prone
+        allprojects {
+            afterEvaluate { project ->
+                project.tasks.withType(JavaCompile) {
+                    options.errorprone.enabled = false
+                }
+            }
+        }
+    }
+
+    plugins.withId('java') {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+
+        java.withJavadocJar()
+        java.withSourcesJar()
+
+        jar.manifest {
+            attributes('Implementation-Title': name,
+                    'Implementation-Version': version,
+                    'Built-By': System.getProperty('user.name'),
+                    'Built-JDK': System.getProperty('java.version'),
+                    'Source-Compatibility': sourceCompatibility,
+                    'Target-Compatibility': targetCompatibility)
+        }
+
+        javadoc.options {
+            encoding = 'UTF-8'
+            use = true
+            links 'https://docs.oracle.com/en/java/javase/11/docs/api/'
+        }
+
+        // Log stacktrace to console when test fails.
+        test {
+            testLogging {
+                exceptionFormat = 'full'
+                showExceptions true
+                showCauses true
+                showStackTraces true
+            }
+            maxHeapSize = '1500m'
+        }
+    }
+
+    plugins.withId('maven-publish') {
+        publishing {
+            publications {
+                maven(MavenPublication) {
+                    from components.java
+
+                    pom {
+                        name = project.group + ':' + project.name
+                        url = 'https://github.com/google/tsunami-security-scanner-callback-server'
+                        afterEvaluate {
+                            // description is not available until evaluated.
+                            description = project.description
+                        }
+
+                        licenses {
+                            license {
+                                name = 'Apache 2.0'
+                                url = 'https://opensource.org/licenses/Apache-2.0'
+                            }
+                        }
+
+                        scm {
+                            connection = 'scm:git:https://github.com/google/tsunami-security-scanner-callback-server.git'
+                            developerConnection = 'scm:git:git@github.com:google/tsunami-security-scanner-callback-server.git'
+                            url = 'https://github.com/google/tsunami-security-scanner-callback-server'
+                        }
+
+                        developers {
+                            developer {
+                                id = 'com.google.tsunami'
+                                name = 'Tsunami Contributors'
+                                email = 'tsunami-security-scanner@googlegroups.com'
+                                url = 'https://github.com/google/tsunami-security-scanner-callback-server'
+                                organization = 'Tsunami Authors'
+                                organizationUrl = 'https://www.google.com'
+                            }
+                        }
+                    }
+                }
+            }
+            repositories {
+                maven {
+                    def stagingUrl = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
+                    def releaseUrl = stagingUrl
+                    def snapshotUrl = 'https://oss.sonatype.org/content/repositories/snapshots/'
+                    url = version.endsWith('SNAPSHOT') ? snapshotUrl : releaseUrl
+                    credentials {
+                        if (rootProject.hasProperty('ossrhUsername')
+                                && rootProject.hasProperty('ossrhPassword')) {
+                            username = rootProject.ossrhUsername
+                            password = rootProject.ossrhPassword
+                        }
+                    }
+                }
+                mavenLocal()
+            }
+        }
+
+        signing {
+            required false
+            sign publishing.publications.maven
+        }
+
+        plugins.withId('com.github.johnrengelman.shadow') {
+            publishing {
+                publications {
+                    maven {
+                        artifact project.tasks.shadowJar
+                    }
+                }
+            }
+        }
+    }
+}

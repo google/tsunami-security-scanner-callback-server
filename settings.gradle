@@ -1,0 +1,23 @@
+pluginManagement {
+    plugins {
+        id 'com.github.johnrengelman.shadow' version '5.2.0'
+        id 'com.google.protobuf' version '0.8.12'
+        id 'net.ltgt.errorprone' version '1.1.1'
+    }
+    repositories {
+        gradlePluginPortal()
+    }
+}
+
+rootProject.name = 'tcs'
+include ':tcs-common'
+include ':tcs-main'
+include ':tcs-proto'
+include ':tcs-server'
+include ':tcs-storage'
+
+project(':tcs-common').projectDir = "$rootDir/common" as File
+project(':tcs-main').projectDir = "$rootDir/main" as File
+project(':tcs-proto').projectDir = "$rootDir/proto" as File
+project(':tcs-server').projectDir = "$rootDir/server" as File
+project(':tcs-storage').projectDir = "$rootDir/storage" as File
