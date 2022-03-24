@@ -1,0 +1,14 @@
+common:
+  domain: cb.tsunami       # Doesn't matter in http callback mode
+  external_ip: 127.0.0.1   # Running it locally
+storage:
+  in_memory:
+    interaction_ttl_secs: 43200  # 12 hours
+    cleanup_interval_secs: 3600  # 1 hour
+recording:
+  http:
+    port: 8881                   # Any port available on the local machine
+    worker_pool_size: 2
+polling:
+  port: 8880
+  worker_pool_size: 2
