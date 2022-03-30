@@ -26,7 +26,8 @@ import com.google.protobuf.util.Timestamps;
 import com.google.tsunami.callbackserver.common.config.InMemoryStorageConfig;
 import com.google.tsunami.callbackserver.common.time.UtcClock;
 import com.google.tsunami.callbackserver.proto.Interaction;
-import com.google.tsunami.callbackserver.storage.Annotations.InMemoryStorageBackend;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -38,6 +39,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import javax.inject.Inject;
+import javax.inject.Qualifier;
 import javax.inject.Singleton;
 
 /**
@@ -188,4 +190,8 @@ public final class InMemoryInteractionStore implements InteractionStore {
               });
     }
   }
+
+  @Qualifier
+  @Retention(RetentionPolicy.RUNTIME)
+  @interface InMemoryStorageBackend {}
 }
