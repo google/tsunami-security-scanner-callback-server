@@ -33,12 +33,14 @@ subprojects {
         guavaVersion = '31.0.1-jre'
         guiceVersion = '4.2.3'
         javaxInjectVersion = '1'
+        jedisVersion = '2.9.0'
         jcommanderVersion = '1.48'
         nettyVersion = '4.1.72.Final'
         protobufVersion = '3.11.4'
         protocVersion = protobufVersion
         snakeyamlVersion = '1.26'
         junitVersion = '4.13'
+        mockitoVersion = '2.28.2'
         truthVersion = '1.0.1'
 
         // All Tsunami Callback Server dependencies.
@@ -55,6 +57,7 @@ subprojects {
                 guice_assisted: "com.google.inject.extensions:guice-assistedinject:${guiceVersion}",
                 grpc_protobuf: "io.grpc:grpc-protobuf:${grpcVersion}",
                 javax_inject: "javax.inject:javax.inject:${javaxInjectVersion}",
+                jedis: "redis.clients:jedis:${jedisVersion}",
                 jcommander: "com.beust:jcommander:${jcommanderVersion}",
                 netty_buffer: "io.netty:netty-buffer:${nettyVersion}",
                 netty_codec_dns: "io.netty:netty-codec-dns:${nettyVersion}",
@@ -69,6 +72,7 @@ subprojects {
                 // Test dependencies.
                 guava_testlib: "com.google.guava:guava-testlib:${guavaVersion}",
                 junit: "junit:junit:${junitVersion}",
+                mockito: "org.mockito:mockito-core:${mockitoVersion}",
                 truth: "com.google.truth:truth:${truthVersion}",
                 truth8: "com.google.truth.extensions:truth-java8-extension:${truthVersion}",
                 truth_protobuf: "com.google.truth.extensions:truth-proto-extension:${truthVersion}",

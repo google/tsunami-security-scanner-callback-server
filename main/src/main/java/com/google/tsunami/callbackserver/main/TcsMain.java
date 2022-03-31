@@ -30,6 +30,7 @@ import com.google.tsunami.callbackserver.server.polling.InteractionPollingServer
 import com.google.tsunami.callbackserver.server.recording.DnsRecordingServer;
 import com.google.tsunami.callbackserver.server.recording.HttpRecordingServer;
 import com.google.tsunami.callbackserver.storage.InMemoryInteractionStore;
+import com.google.tsunami.callbackserver.storage.RedisInteractionStore;
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.Set;
@@ -71,15 +72,15 @@ public final class TcsMain {
       install(new SystemUtcClockModule());
       install(Sha3CbidGenerator.getModule());
 
-      // Storage backend bindings.
+      // Storage backend bindings. Config builder ensures that there is only one backend enabled.
       tcsConfig
           .storageConfig()
           .inMemoryStorageConfig()
-          .ifPresentOrElse(
-              config -> install(InMemoryInteractionStore.getModule(config)),
-              () -> {
-                throw new AssertionError("Missing required in-memory storage config.");
-              });
+          .ifPresent(config -> install(InMemoryInteractionStore.getModule(config)));
+      tcsConfig
+          .storageConfig()
+          .redisStorageConfig()
+          .ifPresent(config -> install(RedisInteractionStore.getModule(config)));
 
       // Recording server bindings.
       tcsConfig

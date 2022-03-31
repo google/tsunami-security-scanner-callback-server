@@ -8,9 +8,11 @@ dependencies {
     compile deps.guava
     compile deps.guice
     compile deps.javax_inject
+    compile deps.jedis
     compile deps.protobuf_util
 
     testCompile deps.guava_testlib
     testCompile deps.junit
+    testCompile deps.mockito
     testCompile deps.truth, deps.truth8, deps.truth_protobuf
 }
