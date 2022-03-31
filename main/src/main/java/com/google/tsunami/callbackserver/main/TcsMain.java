@@ -72,8 +72,14 @@ public final class TcsMain {
       install(Sha3CbidGenerator.getModule());
 
       // Storage backend bindings.
-      install(
-          InMemoryInteractionStore.getModule(tcsConfig.storageConfig().inMemoryStorageConfig()));
+      tcsConfig
+          .storageConfig()
+          .inMemoryStorageConfig()
+          .ifPresentOrElse(
+              config -> install(InMemoryInteractionStore.getModule(config)),
+              () -> {
+                throw new AssertionError("Missing required in-memory storage config.");
+              });
 
       // Recording server bindings.
       tcsConfig

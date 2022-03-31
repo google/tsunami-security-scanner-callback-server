@@ -16,6 +16,7 @@
 package com.google.tsunami.callbackserver.common.config;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.Truth8.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableMap;
@@ -28,14 +29,61 @@ import org.junit.runners.JUnit4;
 public final class StorageConfigTest {
   private static final ImmutableMap<String, Object> IN_MEMORY_STORAGE_CONFIG_DATA =
       ImmutableMap.of("interaction_ttl_secs", 10, "cleanup_interval_secs", 20);
+  private static final ImmutableMap<String, Object> REDIS_STORAGE_CONFIG_DATA =
+      ImmutableMap.of(
+          "interaction_ttl_secs",
+          10,
+          "read_endpoint_host",
+          "127.0.0.1",
+          "read_endpoint_port",
+          6379,
+          "write_endpoint_host",
+          "127.0.0.2",
+          "write_endpoint_port",
+          6379);
 
   @Test
-  public void fromRawData_always_createsExpectedConfigObject() {
+  public void fromRawData_givenInMemoryStorageConfig_createsExpectedConfigObject() {
     StorageConfig config =
         StorageConfig.fromRawData(ImmutableMap.of("in_memory", IN_MEMORY_STORAGE_CONFIG_DATA));
 
     assertThat(config.inMemoryStorageConfig())
-        .isEqualTo(InMemoryStorageConfig.fromRawData(IN_MEMORY_STORAGE_CONFIG_DATA));
+        .hasValue(InMemoryStorageConfig.fromRawData(IN_MEMORY_STORAGE_CONFIG_DATA));
+    assertThat(config.redisStorageConfig()).isEmpty();
+  }
+
+  @Test
+  public void fromRawData_givenRedisStorageConfig_createsExpectedConfigObject() {
+    StorageConfig config =
+        StorageConfig.fromRawData(ImmutableMap.of("redis", REDIS_STORAGE_CONFIG_DATA));
+
+    assertThat(config.inMemoryStorageConfig()).isEmpty();
+    assertThat(config.redisStorageConfig())
+        .hasValue(RedisStorageConfig.fromRawData(REDIS_STORAGE_CONFIG_DATA));
+  }
+
+  @Test
+  public void fromRawData_givenMoreThanOneConfig_throws() {
+    var error =
+        assertThrows(
+            AssertionError.class,
+            () ->
+                StorageConfig.fromRawData(
+                    ImmutableMap.of(
+                        "in_memory",
+                        IN_MEMORY_STORAGE_CONFIG_DATA,
+                        "redis",
+                        REDIS_STORAGE_CONFIG_DATA)));
+    assertThat(error)
+        .hasMessageThat()
+        .isEqualTo("At most one storage backend should be configured.");
+  }
+
+  @Test
+  public void fromRawData_givenEmptyConfig_throws() {
+    var error =
+        assertThrows(AssertionError.class, () -> StorageConfig.fromRawData(ImmutableMap.of()));
+    assertThat(error).hasMessageThat().isEqualTo("At least one storage backend is required.");
   }
 
   @Test
@@ -43,5 +91,7 @@ public final class StorageConfigTest {
     assertThrows(
         ClassCastException.class,
         () -> StorageConfig.fromRawData(ImmutableMap.of("in_memory", "abc")));
+    assertThrows(
+        ClassCastException.class, () -> StorageConfig.fromRawData(ImmutableMap.of("redis", "abc")));
   }
 }

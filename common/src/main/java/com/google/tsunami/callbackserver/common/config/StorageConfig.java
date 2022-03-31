@@ -17,17 +17,33 @@ package com.google.tsunami.callbackserver.common.config;
 
 import com.google.auto.value.AutoValue;
 import java.util.Map;
+import java.util.Optional;
 
 /** Data model for the interaction storage configuration. */
 @AutoValue
 public abstract class StorageConfig {
-  public abstract InMemoryStorageConfig inMemoryStorageConfig();
+  public abstract Optional<InMemoryStorageConfig> inMemoryStorageConfig();
+  public abstract Optional<RedisStorageConfig> redisStorageConfig();
 
   @SuppressWarnings("unchecked") // Invalid casting should crash the whole binary.
-  public static StorageConfig fromRawData(Map<String, Object> recordingServerConfig) {
-    InMemoryStorageConfig inMemoryStorageConfig =
-        InMemoryStorageConfig.fromRawData(
-            (Map<String, Object>) recordingServerConfig.get("in_memory"));
-    return new AutoValue_StorageConfig(inMemoryStorageConfig);
+  public static StorageConfig fromRawData(Map<String, Object> storageConfig) {
+    Optional<InMemoryStorageConfig> inMemoryStorageConfig =
+        storageConfig.containsKey("in_memory")
+            ? Optional.of(
+                InMemoryStorageConfig.fromRawData(
+                    (Map<String, Object>) storageConfig.get("in_memory")))
+            : Optional.empty();
+    Optional<RedisStorageConfig> redisStorageConfig =
+        storageConfig.containsKey("redis")
+            ? Optional.of(
+                RedisStorageConfig.fromRawData((Map<String, Object>) storageConfig.get("redis")))
+            : Optional.empty();
+    if (inMemoryStorageConfig.isEmpty() && redisStorageConfig.isEmpty()) {
+      throw new AssertionError("At least one storage backend is required.");
+    }
+    if (inMemoryStorageConfig.isPresent() && redisStorageConfig.isPresent()) {
+      throw new AssertionError("At most one storage backend should be configured.");
+    }
+    return new AutoValue_StorageConfig(inMemoryStorageConfig, redisStorageConfig);
   }
 }
