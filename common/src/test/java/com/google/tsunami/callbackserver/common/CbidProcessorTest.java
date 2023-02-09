@@ -30,6 +30,8 @@ import org.junit.runners.JUnit4;
 public final class CbidProcessorTest {
   private static final String FAKE_CBID =
       "b0f3dc043a9c5c05f67651a8c9108b4c2b98e7246b2eea14cb204295";
+  private static final String FAKE_CBID_X20_ENCODED =
+      "B0f3dc043a9c5c05F67651a8c9108b4c2B98e7246b2Eea14cb204295";
 
   @Test
   public void addCbidToUrl_returnsUriWithCbidInPath() {
@@ -55,6 +57,14 @@ public final class CbidProcessorTest {
   @Test
   public void extractCbidFromDomain_domainWithCbid_returnsCbid() {
     Optional<String> result = CbidProcessor.extractCbidFromDomain(FAKE_CBID + ".anyDomain.com");
+
+    assertThat(result).hasValue(FAKE_CBID);
+  }
+
+  @Test
+  public void extractCbidFromDomain_domainWithX20EncodedCbid_returnsCbid() {
+    Optional<String> result =
+        CbidProcessor.extractCbidFromDomain(FAKE_CBID_X20_ENCODED + ".anyDomain.com");
 
     assertThat(result).hasValue(FAKE_CBID);
   }

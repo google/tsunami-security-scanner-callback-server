@@ -15,6 +15,7 @@
  */
 package com.google.tsunami.callbackserver.common;
 
+import com.google.common.base.Ascii;
 import com.google.common.flogger.GoogleLogger;
 import com.google.common.net.HostAndPort;
 import java.net.URI;
@@ -61,7 +62,7 @@ public final class CbidProcessor {
   public static Optional<String> extractCbidFromDomain(String domainString) {
     Matcher domainMatcher = DOMAIN_CBID_PATTERN.matcher(domainString);
     if (domainMatcher.find()) {
-      return Optional.of(domainMatcher.group(CBID_KEY));
+      return Optional.of(Ascii.toLowerCase(domainMatcher.group(CBID_KEY)));
     }
     return Optional.empty();
   }
