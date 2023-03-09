@@ -16,8 +16,12 @@
 package com.google.tsunami.callbackserver.server.common;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 
 import com.google.common.net.InetAddresses;
+import com.google.tsunami.callbackserver.server.common.monitoring.TcsEventsObserver;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.dns.DatagramDnsQuery;
@@ -30,17 +34,28 @@ import io.netty.handler.codec.dns.DnsResponseCode;
 import io.netty.handler.codec.dns.DnsSection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.time.Duration;
+import java.util.Optional;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentMatchers;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 /** Tests for {@link DnsHandler}. */
 @RunWith(JUnit4.class)
 public final class DnsHandlerTest {
+  private static final String ENDPOINT_NAME = "TestDnsHandler";
   private static final InetAddress ANSWER_IP = InetAddresses.forString("127.0.0.1");
   private static final String DOMAIN = "localhost";
   private static final int TTL = 1;
   private static final DnsQuestion QUESTION = new DefaultDnsQuestion(DOMAIN, DnsRecordType.A);
+
+  @Rule public final MockitoRule mockito = MockitoJUnit.rule();
+  @Mock TcsEventsObserver eventsObserverMock;
 
   @Test
   public void handleRequest_withValidRequest_returnsNoError() {
@@ -52,6 +67,7 @@ public final class DnsHandlerTest {
     assertThat(response.recordAt(DnsSection.ANSWER).name()).isEqualTo(DOMAIN + ".");
     assertThat(((DefaultDnsRawRecord) response.recordAt(DnsSection.ANSWER)).content().array())
         .isEqualTo(ANSWER_IP.getAddress());
+    verify(eventsObserverMock).onSuccessfullDnsRpc(eq(ENDPOINT_NAME), any(Duration.class));
   }
 
   @Test
@@ -61,6 +77,12 @@ public final class DnsHandlerTest {
     assertThat(response.code()).isEqualTo(DnsResponseCode.SERVFAIL);
     assertThat(response.isAuthoritativeAnswer()).isTrue();
     assertThat((DnsQuestion) response.recordAt(DnsSection.QUESTION)).isEqualTo(QUESTION);
+    verify(eventsObserverMock)
+        .onFailedDnsRpc(
+            eq(ENDPOINT_NAME),
+            any(Duration.class),
+            eq(DnsResponseCode.SERVFAIL),
+            ArgumentMatchers.<Optional<Exception>>any());
   }
 
   private static DatagramDnsResponse runRequest(DnsHandler handler) {
@@ -72,13 +94,13 @@ public final class DnsHandlerTest {
     return channel.readOutbound();
   }
 
-  private abstract static class BaseTestDnsHandler extends DnsHandler {
+  private abstract class BaseTestDnsHandler extends DnsHandler {
     BaseTestDnsHandler() {
-      super("TestDnsHandler", RequestLogger.INSTANCE_FOR_TESTING);
+      super(ENDPOINT_NAME, RequestLogger.INSTANCE_FOR_TESTING, eventsObserverMock);
     }
   }
 
-  private static class OkStatusDnsHandler extends BaseTestDnsHandler {
+  private class OkStatusDnsHandler extends BaseTestDnsHandler {
     @Override
     protected DatagramDnsResponse handleRequest(DatagramDnsQuery request, InetAddress clientAddr)
         throws Exception {
@@ -91,7 +113,7 @@ public final class DnsHandlerTest {
     }
   }
 
-  private static class ErrorStatusDnsHandler extends BaseTestDnsHandler {
+  private class ErrorStatusDnsHandler extends BaseTestDnsHandler {
     @Override
     protected DatagramDnsResponse handleRequest(DatagramDnsQuery request, InetAddress clientAddr)
         throws Exception {

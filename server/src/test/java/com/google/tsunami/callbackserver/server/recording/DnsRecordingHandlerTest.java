@@ -16,6 +16,9 @@
 package com.google.tsunami.callbackserver.server.recording;
 
 import static com.google.common.truth.Truth.assertThat;
+import static com.google.common.truth.extensions.proto.ProtoTruth.assertThat;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import com.google.common.net.InetAddresses;
 import com.google.inject.AbstractModule;
@@ -25,6 +28,7 @@ import com.google.protobuf.util.Timestamps;
 import com.google.tsunami.callbackserver.common.time.testing.FakeUtcClock;
 import com.google.tsunami.callbackserver.common.time.testing.FakeUtcClockModule;
 import com.google.tsunami.callbackserver.proto.Interaction;
+import com.google.tsunami.callbackserver.server.common.monitoring.TcsEventsObserver;
 import com.google.tsunami.callbackserver.server.recording.Annotations.AuthoritativeDnsDomain;
 import com.google.tsunami.callbackserver.server.recording.Annotations.IpForDnsAnswer;
 import com.google.tsunami.callbackserver.storage.InMemoryInteractionStore;
@@ -41,9 +45,13 @@ import java.net.InetSocketAddress;
 import java.time.Instant;
 import javax.inject.Inject;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 /** Tests for {@link DnsRecordingHandler}. */
 @RunWith(JUnit4.class)
@@ -63,6 +71,9 @@ public final class DnsRecordingHandlerTest {
   private static final String AUTHORITATIVE_DOMAIN = "domain.com";
   private static final InetAddress TEST_CLIENT_ADDRESS = InetAddresses.forString("1.2.3.4");
 
+  @Rule public final MockitoRule mockito = MockitoJUnit.rule();
+  @Mock TcsEventsObserver eventsObserverMock;
+
   @Inject private DnsRecordingHandler handler;
   @Inject private InteractionStore interactionStore;
 
@@ -71,13 +82,14 @@ public final class DnsRecordingHandlerTest {
     createInjector(ANSWER_IPV4_IP.getHostAddress()).injectMembers(this);
   }
 
-  private static Injector createInjector(String dnsAnswerIp) {
+  private Injector createInjector(String dnsAnswerIp) {
     return Guice.createInjector(
         new AbstractModule() {
           @Override
           protected void configure() {
             install(InMemoryInteractionStore.getModuleForTesting());
             install(new FakeUtcClockModule(fakeUtcClock));
+            bind(TcsEventsObserver.class).toInstance(eventsObserverMock);
             bind(String.class).annotatedWith(IpForDnsAnswer.class).toInstance(dnsAnswerIp);
             bind(String.class)
                 .annotatedWith(AuthoritativeDnsDomain.class)
@@ -96,6 +108,7 @@ public final class DnsRecordingHandlerTest {
     assertThat(response.recordAt(DnsSection.ANSWER).type()).isEqualTo(DnsRecordType.A);
     assertThat(((DefaultDnsRawRecord) response.recordAt(DnsSection.ANSWER)).content().array())
         .isEqualTo(ANSWER_IPV4_IP.getAddress());
+    verify(eventsObserverMock).onDnsInteractionRecorded();
   }
 
   @Test
@@ -110,6 +123,7 @@ public final class DnsRecordingHandlerTest {
     assertThat(response.recordAt(DnsSection.ANSWER).type()).isEqualTo(DnsRecordType.AAAA);
     assertThat(((DefaultDnsRawRecord) response.recordAt(DnsSection.ANSWER)).content().array())
         .isEqualTo(ANSWER_IPV6_IP.getAddress());
+    verify(eventsObserverMock).onDnsInteractionRecorded();
   }
 
   @Test
@@ -121,6 +135,7 @@ public final class DnsRecordingHandlerTest {
     assertThat(response.recordAt(DnsSection.ANSWER).type()).isEqualTo(DnsRecordType.A);
     assertThat(((DefaultDnsRawRecord) response.recordAt(DnsSection.ANSWER)).content().array())
         .isEqualTo(ANSWER_IPV4_IP.getAddress());
+    verify(eventsObserverMock, never()).onDnsInteractionRecorded();
   }
 
   @Test
@@ -129,6 +144,7 @@ public final class DnsRecordingHandlerTest {
         .isEqualTo(DnsResponseCode.REFUSED);
     assertThat(handler.handleRequest(buildRequest("refuseddomain.com"), TEST_CLIENT_ADDRESS).code())
         .isEqualTo(DnsResponseCode.REFUSED);
+    verify(eventsObserverMock, never()).onDnsInteractionRecorded();
   }
 
   @Test
@@ -138,6 +154,7 @@ public final class DnsRecordingHandlerTest {
             buildRequest(FAKE_CBID + "." + AUTHORITATIVE_DOMAIN), TEST_CLIENT_ADDRESS);
 
     assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_DNS_INTERACTION);
+    verify(eventsObserverMock).onDnsInteractionRecorded();
   }
 
   @Test
@@ -147,6 +164,7 @@ public final class DnsRecordingHandlerTest {
             buildRequest("RANDOM_DOMAIN." + AUTHORITATIVE_DOMAIN), TEST_CLIENT_ADDRESS);
 
     assertThat(interactionStore.get("RANDOM_DOMAIN")).isEmpty();
+    verify(eventsObserverMock, never()).onDnsInteractionRecorded();
   }
 
   private static DatagramDnsQuery buildRequest(String domain) {

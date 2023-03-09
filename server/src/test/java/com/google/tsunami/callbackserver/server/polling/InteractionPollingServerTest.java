@@ -26,6 +26,7 @@ import com.google.tsunami.callbackserver.common.Sha3CbidGenerator;
 import com.google.tsunami.callbackserver.common.config.PollingServerConfig;
 import com.google.tsunami.callbackserver.common.time.testing.FakeUtcClockModule;
 import com.google.tsunami.callbackserver.server.common.TcsServer;
+import com.google.tsunami.callbackserver.server.common.monitoring.NoOpTcsEventsObserver;
 import com.google.tsunami.callbackserver.server.polling.Annotations.InteractionPollingServerBossGroup;
 import com.google.tsunami.callbackserver.server.polling.Annotations.InteractionPollingServerPort;
 import com.google.tsunami.callbackserver.server.polling.Annotations.InteractionPollingServerWorkerGroup;
@@ -93,6 +94,7 @@ public final class InteractionPollingServerTest {
         InteractionPollingServer.getModule(CONFIG),
         InMemoryInteractionStore.getModuleForTesting(),
         Sha3CbidGenerator.getModule(),
-        new FakeUtcClockModule());
+        new FakeUtcClockModule(),
+        NoOpTcsEventsObserver.getModule());
   }
 }

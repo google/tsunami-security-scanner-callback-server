@@ -21,6 +21,7 @@ import com.google.common.flogger.GoogleLogger;
 import com.google.common.net.InetAddresses;
 import com.google.common.net.InternetDomainName;
 import com.google.tsunami.callbackserver.server.common.DnsHandler;
+import com.google.tsunami.callbackserver.server.common.monitoring.TcsEventsObserver;
 import com.google.tsunami.callbackserver.server.recording.Annotations.AuthoritativeDnsDomain;
 import com.google.tsunami.callbackserver.server.recording.Annotations.IpForDnsAnswer;
 import com.google.tsunami.callbackserver.storage.InteractionStore;
@@ -53,8 +54,9 @@ final class DnsRecordingHandler extends DnsHandler {
   DnsRecordingHandler(
       InteractionStore interactionStore,
       @IpForDnsAnswer String serverExternalIp,
-      @AuthoritativeDnsDomain String authoritativeDnsDomain) {
-    super(ENDPOINT_NAME);
+      @AuthoritativeDnsDomain String authoritativeDnsDomain,
+      TcsEventsObserver tcsEventsObserver) {
+    super(ENDPOINT_NAME, tcsEventsObserver);
     this.interactionStore = interactionStore;
     this.serverExternalIp = serverExternalIp;
     this.authoritativeDnsDomain = authoritativeDnsDomain;
@@ -77,6 +79,7 @@ final class DnsRecordingHandler extends DnsHandler {
                   "Recording DNS interaction with CBID '%s' from IP %s",
                   cbid, clientAddr.getHostAddress());
               interactionStore.add(cbid, InteractionType.DNS_INTERACTION);
+              tcsEventsObserver.onDnsInteractionRecorded();
             });
 
     response.addRecord(DnsSection.ANSWER, buildAnswer(question.name(), serverExternalIp));

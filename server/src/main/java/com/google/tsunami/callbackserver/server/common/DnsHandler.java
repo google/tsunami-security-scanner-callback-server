@@ -18,8 +18,10 @@ package com.google.tsunami.callbackserver.server.common;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.flogger.GoogleLogger;
+import com.google.tsunami.callbackserver.server.common.monitoring.TcsEventsObserver;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.dns.DatagramDnsQuery;
@@ -27,40 +29,57 @@ import io.netty.handler.codec.dns.DatagramDnsResponse;
 import io.netty.handler.codec.dns.DnsResponseCode;
 import io.netty.handler.codec.dns.DnsSection;
 import java.net.InetAddress;
+import java.util.Optional;
 
 /** Base implementation of a Netty handler for serving DNS traffic. */
 @SuppressWarnings("FutureReturnValueIgnored")
 public abstract class DnsHandler extends SimpleChannelInboundHandler<DatagramDnsQuery> {
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
+  protected final TcsEventsObserver tcsEventsObserver;
+
   private final String endpointName;
   private final RequestLogger requestLogger;
 
-  protected DnsHandler(String endpointName) {
-    this(endpointName, RequestLogger.INSTANCE);
+  protected DnsHandler(String endpointName, TcsEventsObserver tcsEventsObserver) {
+    this(endpointName, RequestLogger.INSTANCE, tcsEventsObserver);
   }
 
-  protected DnsHandler(String endpointName, RequestLogger requestLogger) {
+  protected DnsHandler(
+      String endpointName, RequestLogger requestLogger, TcsEventsObserver tcsEventsObserver) {
     checkArgument(!Strings.isNullOrEmpty(endpointName));
-    checkNotNull(requestLogger);
     this.endpointName = endpointName;
-    this.requestLogger = requestLogger;
+    this.requestLogger = checkNotNull(requestLogger);
+    this.tcsEventsObserver = checkNotNull(tcsEventsObserver);
   }
 
   @Override
   protected void channelRead0(ChannelHandlerContext ctx, DatagramDnsQuery request) {
+    var stopwatch = Stopwatch.createStarted();
     var clientAddr = requestLogger.logRequestAndGetClientAddr(endpointName, ctx, request);
 
     DatagramDnsResponse response;
+    Optional<Exception> foundEx = Optional.empty();
     try {
       response = handleRequest(request, clientAddr);
-    } catch (Exception e) {
-      logger.atSevere().withCause(e).log(
+    } catch (Exception ex) {
+      logger.atSevere().withCause(ex).log(
           "Unable to handle DNS request on %s endpoint from IP %s",
           endpointName, clientAddr.getHostAddress());
+      foundEx = Optional.of(ex);
       response = buildServerFailureResponse(request);
     }
-    ctx.writeAndFlush(response);
+
+    try {
+      ctx.writeAndFlush(response);
+    } finally {
+      var responseCode = response.code();
+      if (responseCode.equals(DnsResponseCode.NOERROR)) {
+        tcsEventsObserver.onSuccessfullDnsRpc(endpointName, stopwatch.elapsed());
+      } else {
+        tcsEventsObserver.onFailedDnsRpc(endpointName, stopwatch.elapsed(), responseCode, foundEx);
+      }
+    }
   }
 
   private static DatagramDnsResponse buildServerFailureResponse(DatagramDnsQuery request) {

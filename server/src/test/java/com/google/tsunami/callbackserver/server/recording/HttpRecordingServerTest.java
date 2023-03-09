@@ -25,6 +25,7 @@ import com.google.inject.util.Types;
 import com.google.tsunami.callbackserver.common.config.HttpRecordingServerConfig;
 import com.google.tsunami.callbackserver.common.time.testing.FakeUtcClockModule;
 import com.google.tsunami.callbackserver.server.common.TcsServer;
+import com.google.tsunami.callbackserver.server.common.monitoring.NoOpTcsEventsObserver;
 import com.google.tsunami.callbackserver.server.recording.Annotations.HttpRecordingServerBossGroup;
 import com.google.tsunami.callbackserver.server.recording.Annotations.HttpRecordingServerPort;
 import com.google.tsunami.callbackserver.server.recording.Annotations.HttpRecordingServerWorkerGroup;
@@ -86,6 +87,7 @@ public final class HttpRecordingServerTest {
     return Guice.createInjector(
         HttpRecordingServer.getModule(CONFIG),
         InMemoryInteractionStore.getModuleForTesting(),
-        new FakeUtcClockModule());
+        new FakeUtcClockModule(),
+        NoOpTcsEventsObserver.getModule());
   }
 }

@@ -25,6 +25,7 @@ import com.google.tsunami.callbackserver.proto.Interaction;
 import com.google.tsunami.callbackserver.proto.PollingResult;
 import com.google.tsunami.callbackserver.server.common.HttpHandler;
 import com.google.tsunami.callbackserver.server.common.NotFoundException;
+import com.google.tsunami.callbackserver.server.common.monitoring.TcsEventsObserver;
 import com.google.tsunami.callbackserver.storage.InteractionStore;
 import io.netty.handler.codec.http.FullHttpRequest;
 import java.net.InetAddress;
@@ -38,8 +39,11 @@ final class InteractionPollingHandler extends HttpHandler {
   private final CbidGenerator cbidGenerator;
 
   @Inject
-  InteractionPollingHandler(InteractionStore interactionStore, CbidGenerator cbidGenerator) {
-    super(ENDPOINT_NAME, HttpHandler.LogNotFoundEx.DONT_LOG);
+  InteractionPollingHandler(
+      InteractionStore interactionStore,
+      CbidGenerator cbidGenerator,
+      TcsEventsObserver tcsEventsObserver) {
+    super(ENDPOINT_NAME, HttpHandler.LogNotFoundEx.DONT_LOG, tcsEventsObserver);
     this.interactionStore = interactionStore;
     this.cbidGenerator = cbidGenerator;
   }
@@ -57,6 +61,7 @@ final class InteractionPollingHandler extends HttpHandler {
       logger.atInfo().log(
           "Interaction with secret '%s' NOT found and polled by IP %s",
           secret, clientAddr.getHostAddress());
+      tcsEventsObserver.onInteractionNotFound();
       throw new NotFoundException(
           // The message does NOT really matter here, since we don't log it but just use this to
           // reply with a 404.
@@ -67,9 +72,19 @@ final class InteractionPollingHandler extends HttpHandler {
           secret, clientAddr.getHostAddress());
     }
 
+    var hasDnsInteractions = interactions.stream().anyMatch(Interaction::getIsDnsInteraction);
+    var hasHttpInteractions = interactions.stream().anyMatch(Interaction::getIsHttpInteraction);
+
+    if (hasDnsInteractions) {
+      tcsEventsObserver.onDnsInteractionFound();
+    }
+    if (hasHttpInteractions) {
+      tcsEventsObserver.onHttpInteractionFound();
+    }
+
     return PollingResult.newBuilder()
-        .setHasDnsInteraction(interactions.stream().anyMatch(Interaction::getIsDnsInteraction))
-        .setHasHttpInteraction(interactions.stream().anyMatch(Interaction::getIsHttpInteraction))
+        .setHasDnsInteraction(hasDnsInteractions)
+        .setHasHttpInteraction(hasHttpInteractions)
         .build();
   }
 }

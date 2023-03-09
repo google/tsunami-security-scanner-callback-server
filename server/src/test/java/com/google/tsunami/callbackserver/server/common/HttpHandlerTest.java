@@ -17,9 +17,13 @@ package com.google.tsunami.callbackserver.server.common;
 
 import static com.google.common.truth.Truth.assertThat;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 
 import com.google.protobuf.Empty;
 import com.google.protobuf.Message;
+import com.google.tsunami.callbackserver.server.common.monitoring.TcsEventsObserver;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.FullHttpRequest;
@@ -30,13 +34,23 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import java.net.InetAddress;
+import java.time.Duration;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 /** Tests for {@link HttpHandler}. */
 @RunWith(JUnit4.class)
 public final class HttpHandlerTest {
+  private static final String ENDPOINT_NAME = "TestHttpHandler";
+
+  @Rule public final MockitoRule mockito = MockitoJUnit.rule();
+  @Mock TcsEventsObserver eventsObserverMock;
+
   @Test
   public void handleRequest_withValidRequest_returnsOk() {
     FullHttpResponse response = runRequest(new OkStatusHttpHandler());
@@ -48,6 +62,8 @@ public final class HttpHandlerTest {
         .isEqualTo(HttpHeaderValues.APPLICATION_JSON.toString());
     assertThat(response.headers().get(HttpHeaderNames.CONTENT_LENGTH))
         .isEqualTo(String.valueOf(expectedContent.length()));
+    verify(eventsObserverMock)
+        .onSuccessfullHttpRpc(eq(ENDPOINT_NAME), any(Duration.class), eq(HttpResponseStatus.OK));
   }
 
   @Test
@@ -61,6 +77,12 @@ public final class HttpHandlerTest {
         .isEqualTo(HttpHeaderValues.TEXT_PLAIN.toString());
     assertThat(response.headers().get(HttpHeaderNames.CONTENT_LENGTH))
         .isEqualTo(String.valueOf(expectedContent.length()));
+    verify(eventsObserverMock)
+        .onFailedHttpRpc(
+            eq(ENDPOINT_NAME),
+            any(Duration.class),
+            eq(HttpResponseStatus.BAD_REQUEST),
+            any(Exception.class));
   }
 
   @Test
@@ -74,6 +96,12 @@ public final class HttpHandlerTest {
         .isEqualTo(HttpHeaderValues.TEXT_PLAIN.toString());
     assertThat(response.headers().get(HttpHeaderNames.CONTENT_LENGTH))
         .isEqualTo(String.valueOf(expectedContent.length()));
+    verify(eventsObserverMock)
+        .onFailedHttpRpc(
+            eq(ENDPOINT_NAME),
+            any(Duration.class),
+            eq(HttpResponseStatus.NOT_FOUND),
+            any(Exception.class));
   }
 
   @Test
@@ -87,6 +115,14 @@ public final class HttpHandlerTest {
         .isEqualTo(HttpHeaderValues.TEXT_PLAIN.toString());
     assertThat(response.headers().get(HttpHeaderNames.CONTENT_LENGTH))
         .isEqualTo(String.valueOf(expectedContent.length()));
+    assertThat(response.headers().get(HttpHeaderNames.CONTENT_LENGTH))
+        .isEqualTo(String.valueOf(expectedContent.length()));
+    verify(eventsObserverMock)
+        .onFailedHttpRpc(
+            eq(ENDPOINT_NAME),
+            any(Duration.class),
+            eq(HttpResponseStatus.INTERNAL_SERVER_ERROR),
+            any(Exception.class));
   }
 
   private static FullHttpResponse runRequest(HttpHandler handler) {
@@ -95,16 +131,17 @@ public final class HttpHandlerTest {
     return channel.readOutbound();
   }
 
-  private abstract static class BaseTestHttpHandler extends HttpHandler {
+  private abstract class BaseTestHttpHandler extends HttpHandler {
     BaseTestHttpHandler() {
       super(
-          "TestHttpHandler",
+          ENDPOINT_NAME,
+          HttpHandler.LogNotFoundEx.DONT_LOG,
           RequestLogger.INSTANCE_FOR_TESTING,
-          HttpHandler.LogNotFoundEx.DONT_LOG);
+          eventsObserverMock);
     }
   }
 
-  private static class OkStatusHttpHandler extends BaseTestHttpHandler {
+  private class OkStatusHttpHandler extends BaseTestHttpHandler {
     @Override
     protected Message handleRequest(FullHttpRequest request, InetAddress clientAddr)
         throws Exception {
@@ -112,7 +149,7 @@ public final class HttpHandlerTest {
     }
   }
 
-  private static class BadRequestHttpHandler extends BaseTestHttpHandler {
+  private class BadRequestHttpHandler extends BaseTestHttpHandler {
     @Override
     protected Message handleRequest(FullHttpRequest request, InetAddress clientAddr)
         throws Exception {
@@ -120,7 +157,7 @@ public final class HttpHandlerTest {
     }
   }
 
-  private static class NotFoundHttpHandler extends BaseTestHttpHandler {
+  private class NotFoundHttpHandler extends BaseTestHttpHandler {
     @Override
     protected Message handleRequest(FullHttpRequest request, InetAddress clientAddr)
         throws Exception {
@@ -128,7 +165,7 @@ public final class HttpHandlerTest {
     }
   }
 
-  private static class InternalErrorHttpHandler extends BaseTestHttpHandler {
+  private class InternalErrorHttpHandler extends BaseTestHttpHandler {
     @Override
     protected Message handleRequest(FullHttpRequest request, InetAddress clientAddr)
         throws Exception {

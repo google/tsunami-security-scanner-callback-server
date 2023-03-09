@@ -17,9 +17,12 @@ package com.google.tsunami.callbackserver.server.recording;
 
 import static com.google.common.truth.extensions.proto.ProtoTruth.assertThat;
 import static org.junit.Assert.assertThrows;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import com.google.common.net.HttpHeaders;
 import com.google.common.net.InetAddresses;
+import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.protobuf.Message;
 import com.google.protobuf.util.Timestamps;
@@ -27,6 +30,7 @@ import com.google.tsunami.callbackserver.common.time.testing.FakeUtcClock;
 import com.google.tsunami.callbackserver.common.time.testing.FakeUtcClockModule;
 import com.google.tsunami.callbackserver.proto.HttpInteractionResponse;
 import com.google.tsunami.callbackserver.proto.Interaction;
+import com.google.tsunami.callbackserver.server.common.monitoring.TcsEventsObserver;
 import com.google.tsunami.callbackserver.storage.InMemoryInteractionStore;
 import com.google.tsunami.callbackserver.storage.InteractionStore;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
@@ -36,9 +40,13 @@ import java.net.InetAddress;
 import java.time.Instant;
 import javax.inject.Inject;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnit;
+import org.mockito.junit.MockitoRule;
 
 /** Tests for {@link HttpRecordingHandler}. */
 @RunWith(JUnit4.class)
@@ -55,13 +63,23 @@ public final class HttpRecordingHandlerTest {
           .build();
   private static final InetAddress TEST_CLIENT_ADDRESS = InetAddresses.forString("1.2.3.4");
 
+  @Rule public final MockitoRule mockito = MockitoJUnit.rule();
+  @Mock TcsEventsObserver eventsObserverMock;
+
   @Inject private HttpRecordingHandler handler;
   @Inject private InteractionStore interactionStore;
 
   @Before
   public void setUp() {
     Guice.createInjector(
-            InMemoryInteractionStore.getModuleForTesting(), new FakeUtcClockModule(fakeUtcClock))
+            InMemoryInteractionStore.getModuleForTesting(),
+            new FakeUtcClockModule(fakeUtcClock),
+            new AbstractModule() {
+              @Override
+              protected void configure() {
+                bind(TcsEventsObserver.class).toInstance(eventsObserverMock);
+              }
+            })
         .injectMembers(this);
   }
 
@@ -78,6 +96,7 @@ public final class HttpRecordingHandlerTest {
         handler.handleRequest(buildRequest("127.0.0.1", "/" + FAKE_CBID), TEST_CLIENT_ADDRESS);
 
     assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
+    verify(eventsObserverMock).onHttpInteractionRecorded();
   }
 
   @Test
@@ -86,6 +105,7 @@ public final class HttpRecordingHandlerTest {
         handler.handleRequest(buildRequest("127.0.0.1:8080", "/" + FAKE_CBID), TEST_CLIENT_ADDRESS);
 
     assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
+    verify(eventsObserverMock).onHttpInteractionRecorded();
   }
 
   @Test
@@ -94,6 +114,7 @@ public final class HttpRecordingHandlerTest {
         handler.handleRequest(buildRequest("127.0.0.1", "/RANDOM_PATH"), TEST_CLIENT_ADDRESS);
 
     assertThat(interactionStore.get("RANDOM_PATH")).isEmpty();
+    verify(eventsObserverMock, never()).onHttpInteractionRecorded();
   }
 
   @Test
@@ -102,6 +123,7 @@ public final class HttpRecordingHandlerTest {
         handler.handleRequest(buildRequest(FAKE_CBID + ".domain.com", "/"), TEST_CLIENT_ADDRESS);
 
     assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
+    verify(eventsObserverMock).onHttpInteractionRecorded();
   }
 
   @Test
@@ -111,6 +133,7 @@ public final class HttpRecordingHandlerTest {
             buildRequest(FAKE_CBID + ".domain.com:8080", "/"), TEST_CLIENT_ADDRESS);
 
     assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
+    verify(eventsObserverMock).onHttpInteractionRecorded();
   }
 
   @Test
@@ -119,6 +142,7 @@ public final class HttpRecordingHandlerTest {
         handler.handleRequest(buildRequest("RANDOM_DOMAIN.domain.com", "/"), TEST_CLIENT_ADDRESS);
 
     assertThat(interactionStore.get("RANDOM_DOMAIN")).isEmpty();
+    verify(eventsObserverMock, never()).onHttpInteractionRecorded();
   }
 
   @Test
@@ -126,6 +150,7 @@ public final class HttpRecordingHandlerTest {
     assertThrows(
         IllegalArgumentException.class,
         () -> handler.handleRequest(buildRequest("", "/"), TEST_CLIENT_ADDRESS));
+    verify(eventsObserverMock, never()).onHttpInteractionRecorded();
   }
 
   private static DefaultFullHttpRequest buildRequest(String host, String path) {

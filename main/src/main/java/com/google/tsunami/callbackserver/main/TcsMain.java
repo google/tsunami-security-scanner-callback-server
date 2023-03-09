@@ -26,6 +26,7 @@ import com.google.tsunami.callbackserver.common.Sha3CbidGenerator;
 import com.google.tsunami.callbackserver.common.config.TcsConfig;
 import com.google.tsunami.callbackserver.common.time.SystemUtcClockModule;
 import com.google.tsunami.callbackserver.server.common.TcsServer;
+import com.google.tsunami.callbackserver.server.common.monitoring.NoOpTcsEventsObserver;
 import com.google.tsunami.callbackserver.server.polling.InteractionPollingServer;
 import com.google.tsunami.callbackserver.server.recording.DnsRecordingServer;
 import com.google.tsunami.callbackserver.server.recording.HttpRecordingServer;
@@ -71,6 +72,7 @@ public final class TcsMain {
       bind(SecureRandom.class).toInstance(new SecureRandom());
       install(new SystemUtcClockModule());
       install(Sha3CbidGenerator.getModule());
+      install(NoOpTcsEventsObserver.getModule());
 
       // Storage backend bindings. Config builder ensures that there is only one backend enabled.
       tcsConfig

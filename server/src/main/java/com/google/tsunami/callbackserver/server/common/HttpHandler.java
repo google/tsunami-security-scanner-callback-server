@@ -19,10 +19,12 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
 import com.google.common.flogger.GoogleLogger;
 import com.google.protobuf.Message;
 import com.google.protobuf.util.JsonFormat;
+import com.google.tsunami.callbackserver.server.common.monitoring.TcsEventsObserver;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
@@ -40,9 +42,11 @@ import java.net.InetAddress;
 public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
+  protected final TcsEventsObserver tcsEventsObserver;
+
   private final String endpointName;
-  private final RequestLogger requestLogger;
   private final LogNotFoundEx logNotFound;
+  private final RequestLogger requestLogger;
 
   /** Controls whether or not this handler logs NotFound exceptions. */
   protected enum LogNotFoundEx {
@@ -50,72 +54,84 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
     DONT_LOG;
   }
 
-  protected HttpHandler(String endpointName) {
-    this(endpointName, RequestLogger.INSTANCE, LogNotFoundEx.LOG);
-  }
-
-  protected HttpHandler(String endpointName, LogNotFoundEx logNotFound) {
-    this(endpointName, RequestLogger.INSTANCE, logNotFound);
+  protected HttpHandler(String endpointName, TcsEventsObserver tcsEventsObserver) {
+    this(endpointName, LogNotFoundEx.LOG, RequestLogger.INSTANCE, tcsEventsObserver);
   }
 
   protected HttpHandler(
-    String endpointName, RequestLogger requestLogger, LogNotFoundEx logNotFound) {
+      String endpointName, LogNotFoundEx logNotFound, TcsEventsObserver tcsEventsObserver) {
+    this(endpointName, logNotFound, RequestLogger.INSTANCE, tcsEventsObserver);
+  }
+
+  protected HttpHandler(
+      String endpointName,
+      LogNotFoundEx logNotFound,
+      RequestLogger requestLogger,
+      TcsEventsObserver tcsEventsObserver) {
     checkArgument(!Strings.isNullOrEmpty(endpointName));
-    checkNotNull(requestLogger);
-    checkNotNull(logNotFound);
     this.endpointName = endpointName;
-    this.requestLogger = requestLogger;
-    this.logNotFound = logNotFound;
+    this.requestLogger = checkNotNull(requestLogger);
+    this.logNotFound = checkNotNull(logNotFound);
+    this.tcsEventsObserver = checkNotNull(tcsEventsObserver);
   }
 
   @Override
   protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) {
+    var stopwatch = Stopwatch.createStarted();
     var clientAddr = requestLogger.logRequestAndGetClientAddr(endpointName, ctx, request);
     try {
       String responseContent = JsonFormat.printer().print(handleRequest(request, clientAddr));
-      replyJson(ctx, responseContent);
+      replyJson(ctx, responseContent, stopwatch);
     } catch (NotFoundException ex) {
       // Logging not found exceptions is conditional since in some cases (see the polling endpoint)
       // the majority of requests will actually return this.
       if (logNotFound == LogNotFoundEx.LOG) {
         logger.atSevere().withCause(ex).log(
-          "Unable to handle HTTP request on %s endpoint from IP %s",
-          endpointName, clientAddr.getHostAddress());
+            "Unable to handle HTTP request on %s endpoint from IP %s",
+            endpointName, clientAddr.getHostAddress());
       }
-      replyNotFound(ctx);
+      replyNotFound(ctx, stopwatch, ex);
     } catch (Exception ex) {
       logger.atSevere().withCause(ex).log(
           "Unable to handle HTTP request on %s endpoint from IP %s",
           endpointName, clientAddr.getHostAddress());
       if (ex instanceof IllegalArgumentException) {
-        replyBadRequest(ctx);
+        replyBadRequest(ctx, stopwatch, ex);
       } else {
-        replyInternalError(ctx);
+        replyInternalError(ctx, stopwatch, ex);
       }
     }
   }
 
-  private void replyJson(ChannelHandlerContext ctx, String jsonContent) {
+  private void replyJson(ChannelHandlerContext ctx, String jsonContent, Stopwatch stopwatch) {
     ctx.writeAndFlush(
         buildResponse(HttpResponseStatus.OK, jsonContent, HttpHeaderValues.APPLICATION_JSON));
+    tcsEventsObserver.onSuccessfullHttpRpc(
+        endpointName, stopwatch.elapsed(), HttpResponseStatus.OK);
   }
 
-  private void replyBadRequest(ChannelHandlerContext ctx) {
+  private void replyBadRequest(ChannelHandlerContext ctx, Stopwatch stopwatch, Exception ex) {
     ctx.writeAndFlush(
         buildResponse(HttpResponseStatus.BAD_REQUEST, "Bad Request.", HttpHeaderValues.TEXT_PLAIN));
+    tcsEventsObserver.onFailedHttpRpc(
+        endpointName, stopwatch.elapsed(), HttpResponseStatus.BAD_REQUEST, ex);
   }
 
-  private void replyNotFound(ChannelHandlerContext ctx) {
+  private void replyNotFound(ChannelHandlerContext ctx, Stopwatch stopwatch, Exception ex) {
     ctx.writeAndFlush(
         buildResponse(HttpResponseStatus.NOT_FOUND, "Not Found.", HttpHeaderValues.TEXT_PLAIN));
+    tcsEventsObserver.onFailedHttpRpc(
+        endpointName, stopwatch.elapsed(), HttpResponseStatus.NOT_FOUND, ex);
   }
 
-  private void replyInternalError(ChannelHandlerContext ctx) {
+  private void replyInternalError(ChannelHandlerContext ctx, Stopwatch stopwatch, Exception ex) {
     ctx.writeAndFlush(
         buildResponse(
             HttpResponseStatus.INTERNAL_SERVER_ERROR,
             "Server Error.",
             HttpHeaderValues.TEXT_PLAIN));
+    tcsEventsObserver.onFailedHttpRpc(
+        endpointName, stopwatch.elapsed(), HttpResponseStatus.INTERNAL_SERVER_ERROR, ex);
   }
 
   private FullHttpResponse buildResponse(

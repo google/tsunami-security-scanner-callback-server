@@ -25,6 +25,7 @@ import com.google.inject.util.Types;
 import com.google.tsunami.callbackserver.common.config.DnsRecordingServerConfig;
 import com.google.tsunami.callbackserver.common.time.testing.FakeUtcClockModule;
 import com.google.tsunami.callbackserver.server.common.TcsServer;
+import com.google.tsunami.callbackserver.server.common.monitoring.NoOpTcsEventsObserver;
 import com.google.tsunami.callbackserver.server.recording.Annotations.AuthoritativeDnsDomain;
 import com.google.tsunami.callbackserver.server.recording.Annotations.DnsRecordingServerPort;
 import com.google.tsunami.callbackserver.server.recording.Annotations.DnsRecordingServerWorkerGroup;
@@ -86,6 +87,7 @@ public final class DnsRecordingServerTest {
     return Guice.createInjector(
         DnsRecordingServer.getModule(CONFIG, "127.0.0.1", "domain.com"),
         InMemoryInteractionStore.getModuleForTesting(),
-        new FakeUtcClockModule());
+        new FakeUtcClockModule(),
+        NoOpTcsEventsObserver.getModule());
   }
 }

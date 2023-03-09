@@ -24,6 +24,7 @@ import com.google.common.flogger.GoogleLogger;
 import com.google.protobuf.Message;
 import com.google.tsunami.callbackserver.proto.HttpInteractionResponse;
 import com.google.tsunami.callbackserver.server.common.HttpHandler;
+import com.google.tsunami.callbackserver.server.common.monitoring.TcsEventsObserver;
 import com.google.tsunami.callbackserver.storage.InteractionStore;
 import com.google.tsunami.callbackserver.storage.InteractionStore.InteractionType;
 import io.netty.handler.codec.http.FullHttpRequest;
@@ -37,8 +38,8 @@ final class HttpRecordingHandler extends HttpHandler {
   private final InteractionStore interactionStore;
 
   @Inject
-  HttpRecordingHandler(InteractionStore interactionStore) {
-    super(ENDPOINT_NAME);
+  HttpRecordingHandler(InteractionStore interactionStore, TcsEventsObserver tcsEventsObserver) {
+    super(ENDPOINT_NAME, tcsEventsObserver);
     this.interactionStore = interactionStore;
   }
 
@@ -53,6 +54,7 @@ final class HttpRecordingHandler extends HttpHandler {
                   "Recording HTTP interaction with CBID '%s' from IP %s",
                   cbid, clientAddr.getHostAddress());
               interactionStore.add(cbid, InteractionType.HTTP_INTERACTION);
+              tcsEventsObserver.onHttpInteractionRecorded();
             });
 
     // We always reply OK, no matter if we found a callback id or not. This is done on purpose as we
