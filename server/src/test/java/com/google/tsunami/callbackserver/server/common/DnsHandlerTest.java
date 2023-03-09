@@ -72,9 +72,16 @@ public final class DnsHandlerTest {
     return channel.readOutbound();
   }
 
-  static class OkStatusDnsHandler extends DnsHandler {
+  private abstract static class BaseTestDnsHandler extends DnsHandler {
+    BaseTestDnsHandler() {
+      super("TestDnsHandler", RequestLogger.INSTANCE_FOR_TESTING);
+    }
+  }
+
+  private static class OkStatusDnsHandler extends BaseTestDnsHandler {
     @Override
-    protected DatagramDnsResponse handleRequest(DatagramDnsQuery request) throws Exception {
+    protected DatagramDnsResponse handleRequest(DatagramDnsQuery request, InetAddress clientAddr)
+        throws Exception {
       DatagramDnsResponse response = buildBasicDnsResponse(request);
       response.addRecord(
           DnsSection.ANSWER,
@@ -84,9 +91,10 @@ public final class DnsHandlerTest {
     }
   }
 
-  static class ErrorStatusDnsHandler extends DnsHandler {
+  private static class ErrorStatusDnsHandler extends BaseTestDnsHandler {
     @Override
-    protected DatagramDnsResponse handleRequest(DatagramDnsQuery request) throws Exception {
+    protected DatagramDnsResponse handleRequest(DatagramDnsQuery request, InetAddress clientAddr)
+        throws Exception {
       throw new RuntimeException();
     }
   }

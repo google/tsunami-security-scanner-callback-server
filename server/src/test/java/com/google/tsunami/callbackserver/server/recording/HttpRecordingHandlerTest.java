@@ -19,6 +19,7 @@ import static com.google.common.truth.extensions.proto.ProtoTruth.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import com.google.common.net.HttpHeaders;
+import com.google.common.net.InetAddresses;
 import com.google.inject.Guice;
 import com.google.protobuf.Message;
 import com.google.protobuf.util.Timestamps;
@@ -31,6 +32,7 @@ import com.google.tsunami.callbackserver.storage.InteractionStore;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
+import java.net.InetAddress;
 import java.time.Instant;
 import javax.inject.Inject;
 import org.junit.Before;
@@ -51,6 +53,7 @@ public final class HttpRecordingHandlerTest {
           .setIsDnsInteraction(false)
           .setRecordTime(Timestamps.fromMillis(Instant.now(fakeUtcClock).toEpochMilli()))
           .build();
+  private static final InetAddress TEST_CLIENT_ADDRESS = InetAddresses.forString("1.2.3.4");
 
   @Inject private HttpRecordingHandler handler;
   @Inject private InteractionStore interactionStore;
@@ -64,49 +67,56 @@ public final class HttpRecordingHandlerTest {
 
   @Test
   public void handleRequest_whenNoErrors_alwaysReturnOkStatus() {
-    Message response = handler.handleRequest(buildRequest("127.0.0.1", "/"));
+    Message response = handler.handleRequest(buildRequest("127.0.0.1", "/"), TEST_CLIENT_ADDRESS);
 
     assertThat(response).isEqualTo(HttpInteractionResponse.newBuilder().setStatus("OK").build());
   }
 
   @Test
   public void handleRequest_whenValidCbidInPath_savesInteraction() {
-    handler.handleRequest(buildRequest("127.0.0.1", "/" + FAKE_CBID));
+    var unused =
+        handler.handleRequest(buildRequest("127.0.0.1", "/" + FAKE_CBID), TEST_CLIENT_ADDRESS);
 
     assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
   }
 
   @Test
   public void handleRequest_whenValidCbidInPathAndPortInHost_savesInteraction() {
-    handler.handleRequest(buildRequest("127.0.0.1:8080", "/" + FAKE_CBID));
+    var unused =
+        handler.handleRequest(buildRequest("127.0.0.1:8080", "/" + FAKE_CBID), TEST_CLIENT_ADDRESS);
 
     assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
   }
 
   @Test
   public void handleRequest_whenInvalidCbidInPath_ignoresPathValue() {
-    handler.handleRequest(buildRequest("127.0.0.1", "/RANDOM_PATH"));
+    var unused =
+        handler.handleRequest(buildRequest("127.0.0.1", "/RANDOM_PATH"), TEST_CLIENT_ADDRESS);
 
     assertThat(interactionStore.get("RANDOM_PATH")).isEmpty();
   }
 
   @Test
   public void handleRequest_whenValidCbidInDomain_savesInteraction() {
-    handler.handleRequest(buildRequest(FAKE_CBID + ".domain.com", "/"));
+    var unused =
+        handler.handleRequest(buildRequest(FAKE_CBID + ".domain.com", "/"), TEST_CLIENT_ADDRESS);
 
     assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
   }
 
   @Test
   public void handleRequest_whenValidCbidInDomainWithPort_savesInteraction() {
-    handler.handleRequest(buildRequest(FAKE_CBID + ".domain.com:8080", "/"));
+    var unused =
+        handler.handleRequest(
+            buildRequest(FAKE_CBID + ".domain.com:8080", "/"), TEST_CLIENT_ADDRESS);
 
     assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
   }
 
   @Test
   public void handleRequest_whenInvalidCbidInDomain_ignoresPathValue() {
-    handler.handleRequest(buildRequest("RANDOM_DOMAIN.domain.com", "/"));
+    var unused =
+        handler.handleRequest(buildRequest("RANDOM_DOMAIN.domain.com", "/"), TEST_CLIENT_ADDRESS);
 
     assertThat(interactionStore.get("RANDOM_DOMAIN")).isEmpty();
   }
@@ -114,7 +124,8 @@ public final class HttpRecordingHandlerTest {
   @Test
   public void handleRequest_whenMissingHostname_throws() {
     assertThrows(
-        IllegalArgumentException.class, () -> handler.handleRequest(buildRequest("", "/")));
+        IllegalArgumentException.class,
+        () -> handler.handleRequest(buildRequest("", "/"), TEST_CLIENT_ADDRESS));
   }
 
   private static DefaultFullHttpRequest buildRequest(String host, String path) {

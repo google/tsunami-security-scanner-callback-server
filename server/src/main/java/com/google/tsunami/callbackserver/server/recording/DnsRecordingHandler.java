@@ -17,6 +17,7 @@ package com.google.tsunami.callbackserver.server.recording;
 
 import static com.google.tsunami.callbackserver.common.CbidProcessor.extractCbidFromDomain;
 
+import com.google.common.flogger.GoogleLogger;
 import com.google.common.net.InetAddresses;
 import com.google.common.net.InternetDomainName;
 import com.google.tsunami.callbackserver.server.common.DnsHandler;
@@ -39,7 +40,11 @@ import javax.inject.Inject;
 
 /** DNS handler for recording interactions via DNS requests. */
 final class DnsRecordingHandler extends DnsHandler {
+  private static final String ENDPOINT_NAME = "RECORDING";
   private static final int TTL = 60;
+
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+
   private final InteractionStore interactionStore;
   private final String serverExternalIp;
   private final String authoritativeDnsDomain;
@@ -49,13 +54,14 @@ final class DnsRecordingHandler extends DnsHandler {
       InteractionStore interactionStore,
       @IpForDnsAnswer String serverExternalIp,
       @AuthoritativeDnsDomain String authoritativeDnsDomain) {
+    super(ENDPOINT_NAME);
     this.interactionStore = interactionStore;
     this.serverExternalIp = serverExternalIp;
     this.authoritativeDnsDomain = authoritativeDnsDomain;
   }
 
   @Override
-  protected DatagramDnsResponse handleRequest(DatagramDnsQuery request) {
+  protected DatagramDnsResponse handleRequest(DatagramDnsQuery request, InetAddress clientAddr) {
     DefaultDnsQuestion question = request.recordAt(DnsSection.QUESTION);
     DatagramDnsResponse response = buildBasicDnsResponse(request);
 
@@ -65,7 +71,13 @@ final class DnsRecordingHandler extends DnsHandler {
     }
 
     extractCbidFromDomain(question.name())
-        .ifPresent(cbid -> interactionStore.add(cbid, InteractionType.DNS_INTERACTION));
+        .ifPresent(
+            cbid -> {
+              logger.atInfo().log(
+                  "Recording DNS interaction with CBID '%s' from IP %s",
+                  cbid, clientAddr.getHostAddress());
+              interactionStore.add(cbid, InteractionType.DNS_INTERACTION);
+            });
 
     response.addRecord(DnsSection.ANSWER, buildAnswer(question.name(), serverExternalIp));
     return response;

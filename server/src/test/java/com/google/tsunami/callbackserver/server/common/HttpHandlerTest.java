@@ -29,6 +29,7 @@ import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import java.net.InetAddress;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -36,7 +37,6 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link HttpHandler}. */
 @RunWith(JUnit4.class)
 public final class HttpHandlerTest {
-
   @Test
   public void handleRequest_withValidRequest_returnsOk() {
     FullHttpResponse response = runRequest(new OkStatusHttpHandler());
@@ -95,30 +95,43 @@ public final class HttpHandlerTest {
     return channel.readOutbound();
   }
 
-  static class OkStatusHttpHandler extends HttpHandler {
+  private abstract static class BaseTestHttpHandler extends HttpHandler {
+    BaseTestHttpHandler() {
+      super(
+          "TestHttpHandler",
+          RequestLogger.INSTANCE_FOR_TESTING,
+          HttpHandler.LogNotFoundEx.DONT_LOG);
+    }
+  }
+
+  private static class OkStatusHttpHandler extends BaseTestHttpHandler {
     @Override
-    protected Message handleRequest(FullHttpRequest request) throws Exception {
+    protected Message handleRequest(FullHttpRequest request, InetAddress clientAddr)
+        throws Exception {
       return Empty.getDefaultInstance();
     }
   }
 
-  static class BadRequestHttpHandler extends HttpHandler {
+  private static class BadRequestHttpHandler extends BaseTestHttpHandler {
     @Override
-    protected Message handleRequest(FullHttpRequest request) throws Exception {
+    protected Message handleRequest(FullHttpRequest request, InetAddress clientAddr)
+        throws Exception {
       throw new IllegalArgumentException();
     }
   }
 
-  static class NotFoundHttpHandler extends HttpHandler {
+  private static class NotFoundHttpHandler extends BaseTestHttpHandler {
     @Override
-    protected Message handleRequest(FullHttpRequest request) throws Exception {
+    protected Message handleRequest(FullHttpRequest request, InetAddress clientAddr)
+        throws Exception {
       throw new NotFoundException("");
     }
   }
 
-  static class InternalErrorHttpHandler extends HttpHandler {
+  private static class InternalErrorHttpHandler extends BaseTestHttpHandler {
     @Override
-    protected Message handleRequest(FullHttpRequest request) throws Exception {
+    protected Message handleRequest(FullHttpRequest request, InetAddress clientAddr)
+        throws Exception {
       throw new RuntimeException();
     }
   }

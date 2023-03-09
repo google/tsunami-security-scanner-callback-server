@@ -15,8 +15,11 @@
  */
 package com.google.tsunami.callbackserver.server.common;
 
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
+import com.google.common.base.Strings;
 import com.google.common.flogger.GoogleLogger;
 import com.google.protobuf.Message;
 import com.google.protobuf.util.JsonFormat;
@@ -30,24 +33,62 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import java.net.InetAddress;
 
 /** Base implementation of a Netty handler for serving HTTP traffic. */
 @SuppressWarnings("FutureReturnValueIgnored")
 public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRequest> {
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
+  private final String endpointName;
+  private final RequestLogger requestLogger;
+  private final LogNotFoundEx logNotFound;
+
+  /** Controls whether or not this handler logs NotFound exceptions. */
+  protected enum LogNotFoundEx {
+    LOG,
+    DONT_LOG;
+  }
+
+  protected HttpHandler(String endpointName) {
+    this(endpointName, RequestLogger.INSTANCE, LogNotFoundEx.LOG);
+  }
+
+  protected HttpHandler(String endpointName, LogNotFoundEx logNotFound) {
+    this(endpointName, RequestLogger.INSTANCE, logNotFound);
+  }
+
+  protected HttpHandler(
+    String endpointName, RequestLogger requestLogger, LogNotFoundEx logNotFound) {
+    checkArgument(!Strings.isNullOrEmpty(endpointName));
+    checkNotNull(requestLogger);
+    checkNotNull(logNotFound);
+    this.endpointName = endpointName;
+    this.requestLogger = requestLogger;
+    this.logNotFound = logNotFound;
+  }
+
   @Override
   protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) {
+    var clientAddr = requestLogger.logRequestAndGetClientAddr(endpointName, ctx, request);
     try {
-      logger.atInfo().log("Received HTTP request %s", request);
-      String responseContent = JsonFormat.printer().print(handleRequest(request));
+      String responseContent = JsonFormat.printer().print(handleRequest(request, clientAddr));
       replyJson(ctx, responseContent);
-    } catch (Exception e) {
-      logger.atSevere().withCause(e).log("Unable to handle request %s.", request);
-      if (e instanceof IllegalArgumentException) {
+    } catch (NotFoundException ex) {
+      // Logging not found exceptions is conditional since in some cases (see the polling endpoint)
+      // the majority of requests will actually return this.
+      if (logNotFound == LogNotFoundEx.LOG) {
+        logger.atSevere().withCause(ex).log(
+          "Unable to handle HTTP request on %s endpoint from IP %s",
+          endpointName, clientAddr.getHostAddress());
+      }
+      replyNotFound(ctx);
+    } catch (Exception ex) {
+      logger.atSevere().withCause(ex).log(
+          "Unable to handle HTTP request on %s endpoint from IP %s",
+          endpointName, clientAddr.getHostAddress());
+      if (ex instanceof IllegalArgumentException) {
         replyBadRequest(ctx);
-      } else if (e instanceof NotFoundException) {
-        replyNotFound(ctx);
       } else {
         replyInternalError(ctx);
       }
@@ -94,5 +135,6 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
    * @return the HTTP response body in protobuf format.
    * @throws Exception when there is a problem processing the HTTP request.
    */
-  protected abstract Message handleRequest(FullHttpRequest request) throws Exception;
+  protected abstract Message handleRequest(FullHttpRequest request, InetAddress clientAddr)
+      throws Exception;
 }

@@ -61,6 +61,7 @@ public final class DnsRecordingHandlerTest {
   private static final InetAddress ANSWER_IPV4_IP = InetAddresses.forString("127.0.0.1");
   private static final InetAddress ANSWER_IPV6_IP = InetAddresses.forString("::1");
   private static final String AUTHORITATIVE_DOMAIN = "domain.com";
+  private static final InetAddress TEST_CLIENT_ADDRESS = InetAddresses.forString("1.2.3.4");
 
   @Inject private DnsRecordingHandler handler;
   @Inject private InteractionStore interactionStore;
@@ -88,7 +89,8 @@ public final class DnsRecordingHandlerTest {
   @Test
   public void handleRequest_whenNoErrors_alwaysReturnNoErrorStatus() {
     DatagramDnsResponse response =
-        handler.handleRequest(buildRequest(FAKE_CBID + "." + AUTHORITATIVE_DOMAIN));
+        handler.handleRequest(
+            buildRequest(FAKE_CBID + "." + AUTHORITATIVE_DOMAIN), TEST_CLIENT_ADDRESS);
 
     assertThat(response.code()).isEqualTo(DnsResponseCode.NOERROR);
     assertThat(response.recordAt(DnsSection.ANSWER).type()).isEqualTo(DnsRecordType.A);
@@ -101,7 +103,8 @@ public final class DnsRecordingHandlerTest {
     DatagramDnsResponse response =
         createInjector(ANSWER_IPV6_IP.getHostAddress())
             .getInstance(DnsRecordingHandler.class)
-            .handleRequest(buildRequest(FAKE_CBID + "." + AUTHORITATIVE_DOMAIN));
+            .handleRequest(
+                buildRequest(FAKE_CBID + "." + AUTHORITATIVE_DOMAIN), TEST_CLIENT_ADDRESS);
 
     assertThat(response.code()).isEqualTo(DnsResponseCode.NOERROR);
     assertThat(response.recordAt(DnsSection.ANSWER).type()).isEqualTo(DnsRecordType.AAAA);
@@ -111,7 +114,8 @@ public final class DnsRecordingHandlerTest {
 
   @Test
   public void handleRequest_whenNoCbid_alwaysReturnNoErrorStatus() {
-    DatagramDnsResponse response = handler.handleRequest(buildRequest(AUTHORITATIVE_DOMAIN));
+    DatagramDnsResponse response =
+        handler.handleRequest(buildRequest(AUTHORITATIVE_DOMAIN), TEST_CLIENT_ADDRESS);
 
     assertThat(response.code()).isEqualTo(DnsResponseCode.NOERROR);
     assertThat(response.recordAt(DnsSection.ANSWER).type()).isEqualTo(DnsRecordType.A);
@@ -121,22 +125,26 @@ public final class DnsRecordingHandlerTest {
 
   @Test
   public void handleRequest_whenInvalidDomain_returnsRefused() {
-    assertThat(handler.handleRequest(buildRequest("refused.com")).code())
+    assertThat(handler.handleRequest(buildRequest("refused.com"), TEST_CLIENT_ADDRESS).code())
         .isEqualTo(DnsResponseCode.REFUSED);
-    assertThat(handler.handleRequest(buildRequest("refuseddomain.com")).code())
+    assertThat(handler.handleRequest(buildRequest("refuseddomain.com"), TEST_CLIENT_ADDRESS).code())
         .isEqualTo(DnsResponseCode.REFUSED);
   }
 
   @Test
   public void handleRequest_whenValidCbidInDomain_savesInteraction() {
-    handler.handleRequest(buildRequest(FAKE_CBID + "." + AUTHORITATIVE_DOMAIN));
+    var unused =
+        handler.handleRequest(
+            buildRequest(FAKE_CBID + "." + AUTHORITATIVE_DOMAIN), TEST_CLIENT_ADDRESS);
 
     assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_DNS_INTERACTION);
   }
 
   @Test
   public void handleRequest_whenInvalidCbidInDomain_ignoresCbid() {
-    handler.handleRequest(buildRequest("RANDOM_DOMAIN." + AUTHORITATIVE_DOMAIN));
+    var unused =
+        handler.handleRequest(
+            buildRequest("RANDOM_DOMAIN." + AUTHORITATIVE_DOMAIN), TEST_CLIENT_ADDRESS);
 
     assertThat(interactionStore.get("RANDOM_DOMAIN")).isEmpty();
   }
@@ -144,7 +152,7 @@ public final class DnsRecordingHandlerTest {
   private static DatagramDnsQuery buildRequest(String domain) {
     DatagramDnsQuery request =
         new DatagramDnsQuery(
-            /*sender=*/ null, InetSocketAddress.createUnresolved("localhost", 0), /*id=*/ 1);
+            /* sender= */ null, InetSocketAddress.createUnresolved("localhost", 0), /* id= */ 1);
     request.addRecord(DnsSection.QUESTION, new DefaultDnsQuestion(domain, DnsRecordType.A));
     return request;
   }
@@ -152,7 +160,9 @@ public final class DnsRecordingHandlerTest {
   @Test
   public void handleRequest_withLog4jDomain_resolvesCorrectly() {
     DatagramDnsResponse response =
-        handler.handleRequest(buildRequest("localhost#." + FAKE_CBID + "." + AUTHORITATIVE_DOMAIN));
+        handler.handleRequest(
+            buildRequest("localhost#." + FAKE_CBID + "." + AUTHORITATIVE_DOMAIN),
+            TEST_CLIENT_ADDRESS);
 
     assertThat(response.code()).isEqualTo(DnsResponseCode.NOERROR);
     assertThat(response.recordAt(DnsSection.ANSWER).type()).isEqualTo(DnsRecordType.A);
@@ -162,7 +172,10 @@ public final class DnsRecordingHandlerTest {
 
   @Test
   public void handleRequest_withLog4jDomain_savesInteraction() {
-    handler.handleRequest(buildRequest("localhost#." + FAKE_CBID + "." + AUTHORITATIVE_DOMAIN));
+    var unused =
+        handler.handleRequest(
+            buildRequest("localhost#." + FAKE_CBID + "." + AUTHORITATIVE_DOMAIN),
+            TEST_CLIENT_ADDRESS);
 
     assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_DNS_INTERACTION);
   }
@@ -170,7 +183,10 @@ public final class DnsRecordingHandlerTest {
   @Test
   public void handleRequest_withInvalidLog4jDomain_returnsRefused() {
     assertThat(
-            handler.handleRequest(buildRequest("localhost#." + FAKE_CBID + ".refused.com")).code())
+            handler
+                .handleRequest(
+                    buildRequest("localhost#." + FAKE_CBID + ".refused.com"), TEST_CLIENT_ADDRESS)
+                .code())
         .isEqualTo(DnsResponseCode.REFUSED);
   }
 }

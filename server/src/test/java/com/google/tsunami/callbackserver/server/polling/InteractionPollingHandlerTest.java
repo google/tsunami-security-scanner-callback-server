@@ -18,6 +18,7 @@ package com.google.tsunami.callbackserver.server.polling;
 import static com.google.common.truth.extensions.proto.ProtoTruth.assertThat;
 import static org.junit.Assert.assertThrows;
 
+import com.google.common.net.InetAddresses;
 import com.google.inject.Guice;
 import com.google.protobuf.Message;
 import com.google.tsunami.callbackserver.common.Sha3CbidGenerator;
@@ -30,6 +31,7 @@ import com.google.tsunami.callbackserver.storage.InteractionStore.InteractionTyp
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
+import java.net.InetAddress;
 import javax.inject.Inject;
 import org.junit.Before;
 import org.junit.Test;
@@ -42,6 +44,7 @@ public final class InteractionPollingHandlerTest {
   private static final String FAKE_SECRET = "a3d9ed89deadbeef";
   private static final String FAKE_CBID =
       "04041e8898e739ca33a250923e24f59ca41a8373f8cf6a45a1275f3b";
+  private static final InetAddress TEST_CLIENT_ADDRESS = InetAddresses.forString("1.2.3.4");
 
   @Inject private InteractionPollingHandler handler;
   @Inject private InteractionStore interactionStore;
@@ -62,7 +65,8 @@ public final class InteractionPollingHandlerTest {
     Message response =
         handler.handleRequest(
             new DefaultFullHttpRequest(
-                HttpVersion.HTTP_1_1, HttpMethod.GET, "/?secret=" + FAKE_SECRET));
+                HttpVersion.HTTP_1_1, HttpMethod.GET, "/?secret=" + FAKE_SECRET),
+            TEST_CLIENT_ADDRESS);
 
     assertThat(response)
         .isEqualTo(
@@ -79,7 +83,8 @@ public final class InteractionPollingHandlerTest {
     Message response =
         handler.handleRequest(
             new DefaultFullHttpRequest(
-                HttpVersion.HTTP_1_1, HttpMethod.GET, "/?secret=" + FAKE_SECRET));
+                HttpVersion.HTTP_1_1, HttpMethod.GET, "/?secret=" + FAKE_SECRET),
+            TEST_CLIENT_ADDRESS);
 
     assertThat(response)
         .isEqualTo(
@@ -95,7 +100,8 @@ public final class InteractionPollingHandlerTest {
         IllegalArgumentException.class,
         () ->
             handler.handleRequest(
-                new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/")));
+                new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/"),
+                TEST_CLIENT_ADDRESS));
   }
 
   @Test
@@ -105,6 +111,7 @@ public final class InteractionPollingHandlerTest {
         () ->
             handler.handleRequest(
                 new DefaultFullHttpRequest(
-                    HttpVersion.HTTP_1_1, HttpMethod.GET, "/?secret=not_found")));
+                    HttpVersion.HTTP_1_1, HttpMethod.GET, "/?secret=not_found"),
+                TEST_CLIENT_ADDRESS));
   }
 }

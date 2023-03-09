@@ -18,6 +18,7 @@ package com.google.tsunami.callbackserver.server.polling;
 import static com.google.tsunami.callbackserver.common.UrlParser.getQueryParameter;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.flogger.GoogleLogger;
 import com.google.protobuf.Message;
 import com.google.tsunami.callbackserver.common.CbidGenerator;
 import com.google.tsunami.callbackserver.proto.Interaction;
@@ -26,29 +27,46 @@ import com.google.tsunami.callbackserver.server.common.HttpHandler;
 import com.google.tsunami.callbackserver.server.common.NotFoundException;
 import com.google.tsunami.callbackserver.storage.InteractionStore;
 import io.netty.handler.codec.http.FullHttpRequest;
+import java.net.InetAddress;
 import javax.inject.Inject;
 
 final class InteractionPollingHandler extends HttpHandler {
+  private static final String ENDPOINT_NAME = "POLLING";
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+
   private final InteractionStore interactionStore;
   private final CbidGenerator cbidGenerator;
 
   @Inject
   InteractionPollingHandler(InteractionStore interactionStore, CbidGenerator cbidGenerator) {
+    super(ENDPOINT_NAME, HttpHandler.LogNotFoundEx.DONT_LOG);
     this.interactionStore = interactionStore;
     this.cbidGenerator = cbidGenerator;
   }
 
   @Override
-  protected Message handleRequest(FullHttpRequest request) {
+  protected Message handleRequest(FullHttpRequest request, InetAddress clientAddr) {
     String secret =
         getQueryParameter(request.uri(), "secret")
             .orElseThrow(
                 () -> new IllegalArgumentException("Required parameter 'secret' not found."));
     String cbid = cbidGenerator.generate(secret);
     ImmutableList<Interaction> interactions = interactionStore.get(cbid);
+
     if (interactions.isEmpty()) {
-      throw new NotFoundException(String.format("Interaction with secret %s not found.", secret));
+      logger.atInfo().log(
+          "Interaction with secret '%s' NOT found and polled by IP %s",
+          secret, clientAddr.getHostAddress());
+      throw new NotFoundException(
+          // The message does NOT really matter here, since we don't log it but just use this to
+          // reply with a 404.
+          "Interaction with secret NOT found");
+    } else {
+      logger.atInfo().log(
+          "Interaction with secret '%s' found and polled by IP %s",
+          secret, clientAddr.getHostAddress());
     }
+
     return PollingResult.newBuilder()
         .setHasDnsInteraction(interactions.stream().anyMatch(Interaction::getIsDnsInteraction))
         .setHasHttpInteraction(interactions.stream().anyMatch(Interaction::getIsHttpInteraction))
