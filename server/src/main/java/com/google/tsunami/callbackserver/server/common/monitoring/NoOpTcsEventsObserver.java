@@ -17,13 +17,12 @@
 package com.google.tsunami.callbackserver.server.common.monitoring;
 
 import com.google.inject.AbstractModule;
-import com.google.inject.Module;
 import io.netty.handler.codec.dns.DnsResponseCode;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import java.time.Duration;
 import java.util.Optional;
 
-/** An RpcEventsObserver that does nothing. */
+/** An TcsEventsObserver that does nothing. */
 public final class NoOpTcsEventsObserver implements TcsEventsObserver {
   public static final NoOpTcsEventsObserver INSTANCE = new NoOpTcsEventsObserver();
 
@@ -63,14 +62,13 @@ public final class NoOpTcsEventsObserver implements TcsEventsObserver {
   @Override
   public void onInteractionNotFound() {}
 
-  public static Module getModule() {
-    return new AbstractModule() {
-      @Override
-      protected void configure() {
-        bind(TcsEventsObserver.class).toInstance(INSTANCE);
-      }
-    };
-  }
-
   private NoOpTcsEventsObserver() {}
+
+  /** The Guice module to install the NoOpTcsEventsObserver. */
+  public static final class Module extends AbstractModule {
+    @Override
+    protected void configure() {
+      bind(TcsEventsObserver.class).toInstance(INSTANCE);
+    }
+  }
 }

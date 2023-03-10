@@ -88,6 +88,6 @@ public final class DnsRecordingServerTest {
         DnsRecordingServer.getModule(CONFIG, "127.0.0.1", "domain.com"),
         InMemoryInteractionStore.getModuleForTesting(),
         new FakeUtcClockModule(),
-        NoOpTcsEventsObserver.getModule());
+        new NoOpTcsEventsObserver.Module());
   }
 }

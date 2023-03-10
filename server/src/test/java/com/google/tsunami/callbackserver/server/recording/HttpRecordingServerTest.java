@@ -88,6 +88,6 @@ public final class HttpRecordingServerTest {
         HttpRecordingServer.getModule(CONFIG),
         InMemoryInteractionStore.getModuleForTesting(),
         new FakeUtcClockModule(),
-        NoOpTcsEventsObserver.getModule());
+        new NoOpTcsEventsObserver.Module());
   }
 }

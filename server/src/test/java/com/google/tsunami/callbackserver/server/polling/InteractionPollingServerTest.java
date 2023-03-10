@@ -95,6 +95,6 @@ public final class InteractionPollingServerTest {
         InMemoryInteractionStore.getModuleForTesting(),
         Sha3CbidGenerator.getModule(),
         new FakeUtcClockModule(),
-        NoOpTcsEventsObserver.getModule());
+        new NoOpTcsEventsObserver.Module());
   }
 }

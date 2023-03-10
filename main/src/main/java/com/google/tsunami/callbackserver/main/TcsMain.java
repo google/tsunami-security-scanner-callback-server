@@ -22,11 +22,11 @@ import com.google.common.flogger.GoogleLogger;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
+import com.google.inject.Module;
 import com.google.tsunami.callbackserver.common.Sha3CbidGenerator;
 import com.google.tsunami.callbackserver.common.config.TcsConfig;
 import com.google.tsunami.callbackserver.common.time.SystemUtcClockModule;
 import com.google.tsunami.callbackserver.server.common.TcsServer;
-import com.google.tsunami.callbackserver.server.common.monitoring.NoOpTcsEventsObserver;
 import com.google.tsunami.callbackserver.server.polling.InteractionPollingServer;
 import com.google.tsunami.callbackserver.server.recording.DnsRecordingServer;
 import com.google.tsunami.callbackserver.server.recording.HttpRecordingServer;
@@ -60,9 +60,11 @@ public final class TcsMain {
 
   private static final class TcsMainModule extends AbstractModule {
     private final TcsConfig tcsConfig;
+    private final Module tcsEventsObserverModule;
 
-    TcsMainModule(TcsConfig tcsConfig) {
+    TcsMainModule(TcsConfig tcsConfig, Module tcsEventsObserverModule) {
       this.tcsConfig = checkNotNull(tcsConfig);
+      this.tcsEventsObserverModule = checkNotNull(tcsEventsObserverModule);
     }
 
     @Override
@@ -72,7 +74,7 @@ public final class TcsMain {
       bind(SecureRandom.class).toInstance(new SecureRandom());
       install(new SystemUtcClockModule());
       install(Sha3CbidGenerator.getModule());
-      install(NoOpTcsEventsObserver.getModule());
+      install(tcsEventsObserverModule);
 
       // Storage backend bindings. Config builder ensures that there is only one backend enabled.
       tcsConfig
@@ -111,7 +113,9 @@ public final class TcsMain {
       TcsCliOptions cliOptions = TcsCliOptions.parseArgs(args);
       TcsConfig tcsConfig = TcsConfig.fromYamlFile(cliOptions.customConfig);
 
-      Injector injector = Guice.createInjector(new TcsMainModule(tcsConfig));
+      Injector injector =
+          Guice.createInjector(
+              new TcsMainModule(tcsConfig, cliOptions.getTcsEventsObserverModule()));
       injector.getInstance(TcsMain.class).run();
     } catch (Throwable e) {
       logger.atSevere().withCause(e).log("TCS server error.");
