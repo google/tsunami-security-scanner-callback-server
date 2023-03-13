@@ -35,6 +35,7 @@ import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import java.net.InetAddress;
+import java.util.Optional;
 import javax.inject.Inject;
 import org.junit.Before;
 import org.junit.Rule;
@@ -51,7 +52,8 @@ public final class InteractionPollingHandlerTest {
   private static final String FAKE_SECRET = "a3d9ed89deadbeef";
   private static final String FAKE_CBID =
       "04041e8898e739ca33a250923e24f59ca41a8373f8cf6a45a1275f3b";
-  private static final InetAddress TEST_CLIENT_ADDRESS = InetAddresses.forString("1.2.3.4");
+  private static final Optional<InetAddress> TEST_CLIENT_ADDRESS =
+      Optional.of(InetAddresses.forString("1.2.3.4"));
 
   @Rule public final MockitoRule mockito = MockitoJUnit.rule();
   @Mock TcsEventsObserver eventsObserverMock;

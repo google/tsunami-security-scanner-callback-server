@@ -38,6 +38,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import java.net.InetAddress;
 import java.time.Instant;
+import java.util.Optional;
 import javax.inject.Inject;
 import org.junit.Before;
 import org.junit.Rule;
@@ -61,7 +62,8 @@ public final class HttpRecordingHandlerTest {
           .setIsDnsInteraction(false)
           .setRecordTime(Timestamps.fromMillis(Instant.now(fakeUtcClock).toEpochMilli()))
           .build();
-  private static final InetAddress TEST_CLIENT_ADDRESS = InetAddresses.forString("1.2.3.4");
+  private static final Optional<InetAddress> TEST_CLIENT_ADDRESS =
+      Optional.of(InetAddresses.forString("1.2.3.4"));
 
   @Rule public final MockitoRule mockito = MockitoJUnit.rule();
   @Mock TcsEventsObserver eventsObserverMock;

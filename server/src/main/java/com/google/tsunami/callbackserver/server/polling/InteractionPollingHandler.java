@@ -16,6 +16,7 @@
 package com.google.tsunami.callbackserver.server.polling;
 
 import static com.google.tsunami.callbackserver.common.UrlParser.getQueryParameter;
+import static com.google.tsunami.callbackserver.server.common.RequestLogger.maybeGetClientAddrAsString;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.flogger.GoogleLogger;
@@ -29,6 +30,7 @@ import com.google.tsunami.callbackserver.server.common.monitoring.TcsEventsObser
 import com.google.tsunami.callbackserver.storage.InteractionStore;
 import io.netty.handler.codec.http.FullHttpRequest;
 import java.net.InetAddress;
+import java.util.Optional;
 import javax.inject.Inject;
 
 final class InteractionPollingHandler extends HttpHandler {
@@ -49,7 +51,7 @@ final class InteractionPollingHandler extends HttpHandler {
   }
 
   @Override
-  protected Message handleRequest(FullHttpRequest request, InetAddress clientAddr) {
+  protected Message handleRequest(FullHttpRequest request, Optional<InetAddress> clientAddr) {
     String secret =
         getQueryParameter(request.uri(), "secret")
             .orElseThrow(
@@ -60,7 +62,7 @@ final class InteractionPollingHandler extends HttpHandler {
     if (interactions.isEmpty()) {
       logger.atInfo().log(
           "Interaction with secret '%s' NOT found and polled by IP %s",
-          secret, clientAddr.getHostAddress());
+          secret, maybeGetClientAddrAsString(clientAddr));
       tcsEventsObserver.onInteractionNotFound();
       throw new NotFoundException(
           // The message does NOT really matter here, since we don't log it but just use this to
@@ -69,7 +71,7 @@ final class InteractionPollingHandler extends HttpHandler {
     } else {
       logger.atInfo().log(
           "Interaction with secret '%s' found and polled by IP %s",
-          secret, clientAddr.getHostAddress());
+          secret, maybeGetClientAddrAsString(clientAddr));
     }
 
     var hasDnsInteractions = interactions.stream().anyMatch(Interaction::getIsDnsInteraction);

@@ -19,6 +19,7 @@ import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.net.HttpHeaders.HOST;
 import static com.google.tsunami.callbackserver.common.CbidProcessor.extractCbidFromDomain;
 import static com.google.tsunami.callbackserver.common.CbidProcessor.extractCbidFromUrl;
+import static com.google.tsunami.callbackserver.server.common.RequestLogger.maybeGetClientAddrAsString;
 
 import com.google.common.flogger.GoogleLogger;
 import com.google.protobuf.Message;
@@ -29,6 +30,7 @@ import com.google.tsunami.callbackserver.storage.InteractionStore;
 import com.google.tsunami.callbackserver.storage.InteractionStore.InteractionType;
 import io.netty.handler.codec.http.FullHttpRequest;
 import java.net.InetAddress;
+import java.util.Optional;
 import javax.inject.Inject;
 
 /** HTTP handler for recording interactions via HTTP requests. */
@@ -44,7 +46,7 @@ final class HttpRecordingHandler extends HttpHandler {
   }
 
   @Override
-  protected Message handleRequest(FullHttpRequest request, InetAddress clientAddr) {
+  protected Message handleRequest(FullHttpRequest request, Optional<InetAddress> clientAddr) {
     var url = getUrl(request);
     extractCbidFromUrl(url)
         .or(() -> extractCbidFromDomain(url))
@@ -52,7 +54,7 @@ final class HttpRecordingHandler extends HttpHandler {
             cbid -> {
               logger.atInfo().log(
                   "Recording HTTP interaction with CBID '%s' from IP %s",
-                  cbid, clientAddr.getHostAddress());
+                  cbid, maybeGetClientAddrAsString(clientAddr));
               interactionStore.add(cbid, InteractionType.HTTP_INTERACTION);
               tcsEventsObserver.onHttpInteractionRecorded();
             });

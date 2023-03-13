@@ -43,6 +43,7 @@ import io.netty.handler.codec.dns.DnsSection;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.time.Instant;
+import java.util.Optional;
 import javax.inject.Inject;
 import org.junit.Before;
 import org.junit.Rule;
@@ -69,7 +70,8 @@ public final class DnsRecordingHandlerTest {
   private static final InetAddress ANSWER_IPV4_IP = InetAddresses.forString("127.0.0.1");
   private static final InetAddress ANSWER_IPV6_IP = InetAddresses.forString("::1");
   private static final String AUTHORITATIVE_DOMAIN = "domain.com";
-  private static final InetAddress TEST_CLIENT_ADDRESS = InetAddresses.forString("1.2.3.4");
+  private static final Optional<InetAddress> TEST_CLIENT_ADDRESS =
+      Optional.of(InetAddresses.forString("1.2.3.4"));
 
   @Rule public final MockitoRule mockito = MockitoJUnit.rule();
   @Mock TcsEventsObserver eventsObserverMock;

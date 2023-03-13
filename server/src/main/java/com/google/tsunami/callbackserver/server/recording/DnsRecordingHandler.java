@@ -16,6 +16,7 @@
 package com.google.tsunami.callbackserver.server.recording;
 
 import static com.google.tsunami.callbackserver.common.CbidProcessor.extractCbidFromDomain;
+import static com.google.tsunami.callbackserver.server.common.RequestLogger.maybeGetClientAddrAsString;
 
 import com.google.common.flogger.GoogleLogger;
 import com.google.common.net.InetAddresses;
@@ -37,6 +38,7 @@ import io.netty.handler.codec.dns.DnsSection;
 import java.net.Inet4Address;
 import java.net.Inet6Address;
 import java.net.InetAddress;
+import java.util.Optional;
 import javax.inject.Inject;
 
 /** DNS handler for recording interactions via DNS requests. */
@@ -63,7 +65,8 @@ final class DnsRecordingHandler extends DnsHandler {
   }
 
   @Override
-  protected DatagramDnsResponse handleRequest(DatagramDnsQuery request, InetAddress clientAddr) {
+  protected DatagramDnsResponse handleRequest(
+      DatagramDnsQuery request, Optional<InetAddress> clientAddr) {
     DefaultDnsQuestion question = request.recordAt(DnsSection.QUESTION);
     DatagramDnsResponse response = buildBasicDnsResponse(request);
 
@@ -77,7 +80,7 @@ final class DnsRecordingHandler extends DnsHandler {
             cbid -> {
               logger.atInfo().log(
                   "Recording DNS interaction with CBID '%s' from IP %s",
-                  cbid, clientAddr.getHostAddress());
+                  cbid, maybeGetClientAddrAsString(clientAddr));
               interactionStore.add(cbid, InteractionType.DNS_INTERACTION);
               tcsEventsObserver.onDnsInteractionRecorded();
             });

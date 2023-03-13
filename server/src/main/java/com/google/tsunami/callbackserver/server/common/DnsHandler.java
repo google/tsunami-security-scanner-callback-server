@@ -17,6 +17,7 @@ package com.google.tsunami.callbackserver.server.common;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.tsunami.callbackserver.server.common.RequestLogger.maybeGetClientAddrAsString;
 
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Strings;
@@ -56,7 +57,7 @@ public abstract class DnsHandler extends SimpleChannelInboundHandler<DatagramDns
   @Override
   protected void channelRead0(ChannelHandlerContext ctx, DatagramDnsQuery request) {
     var stopwatch = Stopwatch.createStarted();
-    var clientAddr = requestLogger.logRequestAndGetClientAddr(endpointName, ctx, request);
+    var clientAddr = requestLogger.logRequestAndGetClientAddr(endpointName, request);
 
     DatagramDnsResponse response;
     Optional<Exception> foundEx = Optional.empty();
@@ -65,7 +66,7 @@ public abstract class DnsHandler extends SimpleChannelInboundHandler<DatagramDns
     } catch (Exception ex) {
       logger.atSevere().withCause(ex).log(
           "Unable to handle DNS request on %s endpoint from IP %s",
-          endpointName, clientAddr.getHostAddress());
+          endpointName, maybeGetClientAddrAsString(clientAddr));
       foundEx = Optional.of(ex);
       response = buildServerFailureResponse(request);
     }
@@ -105,5 +106,5 @@ public abstract class DnsHandler extends SimpleChannelInboundHandler<DatagramDns
    * @throws Exception when there is a problem processing the DNS request.
    */
   protected abstract DatagramDnsResponse handleRequest(
-      DatagramDnsQuery request, InetAddress clientAddr) throws Exception;
+      DatagramDnsQuery request, Optional<InetAddress> clientAddr) throws Exception;
 }

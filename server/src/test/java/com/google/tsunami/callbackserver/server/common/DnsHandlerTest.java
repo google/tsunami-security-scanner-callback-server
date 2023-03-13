@@ -96,14 +96,14 @@ public final class DnsHandlerTest {
 
   private abstract class BaseTestDnsHandler extends DnsHandler {
     BaseTestDnsHandler() {
-      super(ENDPOINT_NAME, RequestLogger.INSTANCE_FOR_TESTING, eventsObserverMock);
+      super(ENDPOINT_NAME, RequestLogger.INSTANCE, eventsObserverMock);
     }
   }
 
   private class OkStatusDnsHandler extends BaseTestDnsHandler {
     @Override
-    protected DatagramDnsResponse handleRequest(DatagramDnsQuery request, InetAddress clientAddr)
-        throws Exception {
+    protected DatagramDnsResponse handleRequest(
+        DatagramDnsQuery request, Optional<InetAddress> clientAddr) throws Exception {
       DatagramDnsResponse response = buildBasicDnsResponse(request);
       response.addRecord(
           DnsSection.ANSWER,
@@ -115,8 +115,8 @@ public final class DnsHandlerTest {
 
   private class ErrorStatusDnsHandler extends BaseTestDnsHandler {
     @Override
-    protected DatagramDnsResponse handleRequest(DatagramDnsQuery request, InetAddress clientAddr)
-        throws Exception {
+    protected DatagramDnsResponse handleRequest(
+        DatagramDnsQuery request, Optional<InetAddress> clientAddr) throws Exception {
       throw new RuntimeException();
     }
   }

@@ -35,6 +35,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import java.net.InetAddress;
 import java.time.Duration;
+import java.util.Optional;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -136,14 +137,14 @@ public final class HttpHandlerTest {
       super(
           ENDPOINT_NAME,
           HttpHandler.LogNotFoundEx.DONT_LOG,
-          RequestLogger.INSTANCE_FOR_TESTING,
+          RequestLogger.INSTANCE,
           eventsObserverMock);
     }
   }
 
   private class OkStatusHttpHandler extends BaseTestHttpHandler {
     @Override
-    protected Message handleRequest(FullHttpRequest request, InetAddress clientAddr)
+    protected Message handleRequest(FullHttpRequest request, Optional<InetAddress> clientAddr)
         throws Exception {
       return Empty.getDefaultInstance();
     }
@@ -151,7 +152,7 @@ public final class HttpHandlerTest {
 
   private class BadRequestHttpHandler extends BaseTestHttpHandler {
     @Override
-    protected Message handleRequest(FullHttpRequest request, InetAddress clientAddr)
+    protected Message handleRequest(FullHttpRequest request, Optional<InetAddress> clientAddr)
         throws Exception {
       throw new IllegalArgumentException();
     }
@@ -159,7 +160,7 @@ public final class HttpHandlerTest {
 
   private class NotFoundHttpHandler extends BaseTestHttpHandler {
     @Override
-    protected Message handleRequest(FullHttpRequest request, InetAddress clientAddr)
+    protected Message handleRequest(FullHttpRequest request, Optional<InetAddress> clientAddr)
         throws Exception {
       throw new NotFoundException("");
     }
@@ -167,7 +168,7 @@ public final class HttpHandlerTest {
 
   private class InternalErrorHttpHandler extends BaseTestHttpHandler {
     @Override
-    protected Message handleRequest(FullHttpRequest request, InetAddress clientAddr)
+    protected Message handleRequest(FullHttpRequest request, Optional<InetAddress> clientAddr)
         throws Exception {
       throw new RuntimeException();
     }

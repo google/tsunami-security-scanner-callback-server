@@ -17,6 +17,7 @@ package com.google.tsunami.callbackserver.server.common;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.tsunami.callbackserver.server.common.RequestLogger.maybeGetClientAddrAsString;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.base.Stopwatch;
@@ -36,6 +37,7 @@ import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import java.net.InetAddress;
+import java.util.Optional;
 
 /** Base implementation of a Netty handler for serving HTTP traffic. */
 @SuppressWarnings("FutureReturnValueIgnored")
@@ -88,13 +90,13 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
       if (logNotFound == LogNotFoundEx.LOG) {
         logger.atSevere().withCause(ex).log(
             "Unable to handle HTTP request on %s endpoint from IP %s",
-            endpointName, clientAddr.getHostAddress());
+            endpointName, maybeGetClientAddrAsString(clientAddr));
       }
       replyNotFound(ctx, stopwatch, ex);
     } catch (Exception ex) {
       logger.atSevere().withCause(ex).log(
           "Unable to handle HTTP request on %s endpoint from IP %s",
-          endpointName, clientAddr.getHostAddress());
+          endpointName, maybeGetClientAddrAsString(clientAddr));
       if (ex instanceof IllegalArgumentException) {
         replyBadRequest(ctx, stopwatch, ex);
       } else {
@@ -151,6 +153,6 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
    * @return the HTTP response body in protobuf format.
    * @throws Exception when there is a problem processing the HTTP request.
    */
-  protected abstract Message handleRequest(FullHttpRequest request, InetAddress clientAddr)
-      throws Exception;
+  protected abstract Message handleRequest(
+      FullHttpRequest request, Optional<InetAddress> clientAddr) throws Exception;
 }
