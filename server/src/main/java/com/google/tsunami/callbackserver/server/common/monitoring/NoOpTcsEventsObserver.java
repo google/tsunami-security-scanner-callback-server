@@ -27,7 +27,7 @@ public final class NoOpTcsEventsObserver implements TcsEventsObserver {
   public static final NoOpTcsEventsObserver INSTANCE = new NoOpTcsEventsObserver();
 
   @Override
-  public void onSuccessfullHttpRpc(
+  public void onSuccessfulHttpRpc(
       String endpointName, Duration responseTime, HttpResponseStatus responseCode) {}
 
   @Override
@@ -38,7 +38,7 @@ public final class NoOpTcsEventsObserver implements TcsEventsObserver {
       Optional<Exception> ex) {}
 
   @Override
-  public void onSuccessfullDnsRpc(String endpointName, Duration responseTime) {}
+  public void onSuccessfulDnsRpc(String endpointName, Duration responseTime) {}
 
   @Override
   public void onFailedDnsRpc(

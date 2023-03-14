@@ -76,7 +76,7 @@ public abstract class DnsHandler extends SimpleChannelInboundHandler<DatagramDns
     } finally {
       var responseCode = response.code();
       if (responseCode.equals(DnsResponseCode.NOERROR)) {
-        tcsEventsObserver.onSuccessfullDnsRpc(endpointName, stopwatch.elapsed());
+        tcsEventsObserver.onSuccessfulDnsRpc(endpointName, stopwatch.elapsed());
       } else {
         tcsEventsObserver.onFailedDnsRpc(endpointName, stopwatch.elapsed(), responseCode, foundEx);
       }

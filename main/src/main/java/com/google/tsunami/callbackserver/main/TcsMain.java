@@ -27,6 +27,7 @@ import com.google.tsunami.callbackserver.common.Sha3CbidGenerator;
 import com.google.tsunami.callbackserver.common.config.TcsConfig;
 import com.google.tsunami.callbackserver.common.time.SystemUtcClockModule;
 import com.google.tsunami.callbackserver.server.common.TcsServer;
+import com.google.tsunami.callbackserver.server.common.monitoring.TcsEventsObserver;
 import com.google.tsunami.callbackserver.server.polling.InteractionPollingServer;
 import com.google.tsunami.callbackserver.server.recording.DnsRecordingServer;
 import com.google.tsunami.callbackserver.server.recording.HttpRecordingServer;
@@ -42,13 +43,16 @@ public final class TcsMain {
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   private final ImmutableSet<TcsServer> enabledServers;
+  private final TcsEventsObserver eventsObserver;
 
   @Inject
-  TcsMain(Set<TcsServer> enabledServers) {
+  TcsMain(Set<TcsServer> enabledServers, TcsEventsObserver eventsObserver) {
     this.enabledServers = ImmutableSet.copyOf(enabledServers);
+    this.eventsObserver = eventsObserver;
   }
 
   public void run() throws IOException {
+    eventsObserver.init();
     for (TcsServer server : enabledServers) {
       server.start();
     }

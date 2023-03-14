@@ -108,7 +108,7 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
   private void replyJson(ChannelHandlerContext ctx, String jsonContent, Stopwatch stopwatch) {
     ctx.writeAndFlush(
         buildResponse(HttpResponseStatus.OK, jsonContent, HttpHeaderValues.APPLICATION_JSON));
-    tcsEventsObserver.onSuccessfullHttpRpc(
+    tcsEventsObserver.onSuccessfulHttpRpc(
         endpointName, stopwatch.elapsed(), HttpResponseStatus.OK);
   }
 

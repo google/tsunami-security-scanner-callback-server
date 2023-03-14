@@ -67,7 +67,7 @@ public final class DnsHandlerTest {
     assertThat(response.recordAt(DnsSection.ANSWER).name()).isEqualTo(DOMAIN + ".");
     assertThat(((DefaultDnsRawRecord) response.recordAt(DnsSection.ANSWER)).content().array())
         .isEqualTo(ANSWER_IP.getAddress());
-    verify(eventsObserverMock).onSuccessfullDnsRpc(eq(ENDPOINT_NAME), any(Duration.class));
+    verify(eventsObserverMock).onSuccessfulDnsRpc(eq(ENDPOINT_NAME), any(Duration.class));
   }
 
   @Test

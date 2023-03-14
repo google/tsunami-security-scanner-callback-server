@@ -64,7 +64,7 @@ public final class HttpHandlerTest {
     assertThat(response.headers().get(HttpHeaderNames.CONTENT_LENGTH))
         .isEqualTo(String.valueOf(expectedContent.length()));
     verify(eventsObserverMock)
-        .onSuccessfullHttpRpc(eq(ENDPOINT_NAME), any(Duration.class), eq(HttpResponseStatus.OK));
+        .onSuccessfulHttpRpc(eq(ENDPOINT_NAME), any(Duration.class), eq(HttpResponseStatus.OK));
   }
 
   @Test
