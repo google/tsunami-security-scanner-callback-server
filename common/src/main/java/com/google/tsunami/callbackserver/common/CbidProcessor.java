@@ -16,6 +16,7 @@
 package com.google.tsunami.callbackserver.common;
 
 import com.google.common.base.Ascii;
+import com.google.common.base.Strings;
 import com.google.common.flogger.GoogleLogger;
 import com.google.common.net.HostAndPort;
 import java.net.URI;
@@ -26,6 +27,7 @@ import java.util.regex.Pattern;
 
 /** Utility class for processing CBIDs. */
 public final class CbidProcessor {
+  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
   private static final String CBID_KEY = "CBID";
   private static final String DOMAIN_CBID_PATTERN_STRING =
       String.format("\\.?(?<%s>[a-fA-F0-9]{56})\\.", CBID_KEY);
@@ -33,7 +35,6 @@ public final class CbidProcessor {
   private static final String PATH_CBID_PATTERN_STRING =
       String.format("^/(?<%s>[a-fA-F0-9]{56})$", CBID_KEY);
   private static final Pattern PATH_CBID_PATTERN = Pattern.compile(PATH_CBID_PATTERN_STRING);
-  private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
 
   private CbidProcessor() {}
 
@@ -59,7 +60,28 @@ public final class CbidProcessor {
     return String.format("%s.%s", cbid, hostAndPort);
   }
 
-  public static Optional<String> extractCbidFromDomain(String domainString) {
+  // Check if CBID exists in the host name of a HTTP request
+  public static Optional<String> extractCbidFromDomainInHttpProtocol(String domainString) {
+    try {
+      String host = new URI(domainString).getHost();
+      if (Strings.isNullOrEmpty(host)) {
+        logger.atSevere().log("Unable to parse host from url: %s", domainString);
+        return Optional.empty();
+      }
+      Matcher domainMatcher = DOMAIN_CBID_PATTERN.matcher(host);
+      if (domainMatcher.find()) {
+        return Optional.of(Ascii.toLowerCase(domainMatcher.group(CBID_KEY)));
+      }
+    } catch (URISyntaxException e) {
+      logger.atSevere().withCause(e).log("Unable to parse url: %s", domainString);
+    }
+
+    return Optional.empty();
+  }
+
+  // Check if CBID exists in a DNS lookup request. Domain name from DNS protocol doesn't contain
+  // "http" prefix nor path.
+  public static Optional<String> extractCbidFromDomainInDnsProtocol(String domainString) {
     Matcher domainMatcher = DOMAIN_CBID_PATTERN.matcher(domainString);
     if (domainMatcher.find()) {
       return Optional.of(Ascii.toLowerCase(domainMatcher.group(CBID_KEY)));
@@ -75,7 +97,7 @@ public final class CbidProcessor {
         return Optional.of(pathMatcher.group(CBID_KEY));
       }
     } catch (URISyntaxException e) {
-      logger.atWarning().withCause(e).log("Unable to parse url: %s", urlString);
+      logger.atSevere().withCause(e).log("Unable to parse url: %s", urlString);
     }
     return Optional.empty();
   }

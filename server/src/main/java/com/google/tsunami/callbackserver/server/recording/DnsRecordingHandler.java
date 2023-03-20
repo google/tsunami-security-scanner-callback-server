@@ -15,7 +15,7 @@
  */
 package com.google.tsunami.callbackserver.server.recording;
 
-import static com.google.tsunami.callbackserver.common.CbidProcessor.extractCbidFromDomain;
+import static com.google.tsunami.callbackserver.common.CbidProcessor.extractCbidFromDomainInDnsProtocol;
 import static com.google.tsunami.callbackserver.server.common.RequestLogger.maybeGetClientAddrAsString;
 
 import com.google.common.flogger.GoogleLogger;
@@ -75,7 +75,7 @@ final class DnsRecordingHandler extends DnsHandler {
       return response;
     }
 
-    extractCbidFromDomain(question.name())
+    extractCbidFromDomainInDnsProtocol(question.name())
         .ifPresent(
             cbid -> {
               logger.atInfo().log(

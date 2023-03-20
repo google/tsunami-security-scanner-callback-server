@@ -55,23 +55,54 @@ public final class CbidProcessorTest {
   }
 
   @Test
-  public void extractCbidFromDomain_domainWithCbid_returnsCbid() {
-    Optional<String> result = CbidProcessor.extractCbidFromDomain(FAKE_CBID + ".anyDomain.com");
-
-    assertThat(result).hasValue(FAKE_CBID);
-  }
-
-  @Test
-  public void extractCbidFromDomain_domainWithX20EncodedCbid_returnsCbid() {
+  public void extractCbidFromDomainInDnsProtocol_domainWithCbid_returnsCbid() {
     Optional<String> result =
-        CbidProcessor.extractCbidFromDomain(FAKE_CBID_X20_ENCODED + ".anyDomain.com");
+        CbidProcessor.extractCbidFromDomainInDnsProtocol(FAKE_CBID + ".anyDomain.com");
 
     assertThat(result).hasValue(FAKE_CBID);
   }
 
   @Test
-  public void extractCbidFromDomain_domainWithoutCbid_returnsEmpty() {
-    Optional<String> result = CbidProcessor.extractCbidFromDomain("anySubdomain.anyDomain.com");
+  public void extractCbidFromDomainInDnsProtocol_domainWithX20EncodedCbid_returnsCbid() {
+    Optional<String> result =
+        CbidProcessor.extractCbidFromDomainInDnsProtocol(FAKE_CBID_X20_ENCODED + ".anyDomain.com");
+
+    assertThat(result).hasValue(FAKE_CBID);
+  }
+
+  @Test
+  public void extractCbidFromDomainInDnsProtocol_domainWithoutCbid_returnsEmpty() {
+    Optional<String> result =
+        CbidProcessor.extractCbidFromDomainInDnsProtocol("anySubdomain.anyDomain.com");
+
+    assertThat(result).isEmpty();
+  }
+
+  @Test
+  // This can NEVER happen in practice, where a http url is passed into cbid extractor for DNS.
+  // Otherwise, the callback server would incorrectly log a cbid that doesn't actually come from a
+  // DNS lookup.
+  public void extractCbidFromDomainInDnsProtocol_domainWithoutCbidPathWithCbid_returnsCbid() {
+    Optional<String> result =
+        CbidProcessor.extractCbidFromDomainInDnsProtocol(
+            "http://anySubdomain.anyDomain.com/q=" + FAKE_CBID + ".anyDomain.com");
+
+    assertThat(result).hasValue(FAKE_CBID);
+  }
+
+  @Test
+  public void extractCbidFromDomainInHttpProtocol_domainWithCbid_returnsCbid() {
+    Optional<String> result =
+        CbidProcessor.extractCbidFromDomainInHttpProtocol("http://" + FAKE_CBID + ".anyDomain.com");
+
+    assertThat(result).hasValue(FAKE_CBID);
+  }
+
+  @Test
+  public void extractCbidFromDomainInHttpProtocol_domainWithoutCbidPathWithCbid_returnsEmpty() {
+    Optional<String> result =
+        CbidProcessor.extractCbidFromDomainInHttpProtocol(
+            "http://anySubdomain.anyDomain.com/q=" + FAKE_CBID + ".anyDomain.com");
 
     assertThat(result).isEmpty();
   }

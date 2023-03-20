@@ -17,7 +17,7 @@ package com.google.tsunami.callbackserver.server.recording;
 
 import static com.google.common.base.Strings.isNullOrEmpty;
 import static com.google.common.net.HttpHeaders.HOST;
-import static com.google.tsunami.callbackserver.common.CbidProcessor.extractCbidFromDomain;
+import static com.google.tsunami.callbackserver.common.CbidProcessor.extractCbidFromDomainInHttpProtocol;
 import static com.google.tsunami.callbackserver.common.CbidProcessor.extractCbidFromUrl;
 import static com.google.tsunami.callbackserver.server.common.RequestLogger.maybeGetClientAddrAsString;
 
@@ -49,7 +49,7 @@ final class HttpRecordingHandler extends HttpHandler {
   protected Message handleRequest(FullHttpRequest request, Optional<InetAddress> clientAddr) {
     var url = getUrl(request);
     extractCbidFromUrl(url)
-        .or(() -> extractCbidFromDomain(url))
+        .or(() -> extractCbidFromDomainInHttpProtocol(url))
         .ifPresent(
             cbid -> {
               logger.atInfo().log(
