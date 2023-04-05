@@ -22,6 +22,7 @@ import com.google.common.io.Files;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.Map;
+import org.yaml.snakeyaml.LoaderOptions;
 import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.constructor.SafeConstructor;
 
@@ -34,7 +35,7 @@ public abstract class TcsConfig {
   public abstract PollingServerConfig pollingServerConfig();
 
   public static TcsConfig fromYamlFile(String configFile) throws FileNotFoundException {
-    Yaml yaml = new Yaml(new SafeConstructor());
+    Yaml yaml = new Yaml(new SafeConstructor(new LoaderOptions()));
     Map<String, Object> rawYamlData = yaml.load(Files.newReader(new File(configFile), UTF_8));
     return fromRawData(rawYamlData);
   }
