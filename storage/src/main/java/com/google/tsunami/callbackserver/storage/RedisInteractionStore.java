@@ -152,6 +152,8 @@ public final class RedisInteractionStore implements InteractionStore {
     JedisPool providesReadJedisPool() {
       JedisPoolConfig readPoolConfig = new JedisPoolConfig();
       readPoolConfig.setMaxTotal(128);
+      readPoolConfig.setMaxIdle(128);
+      readPoolConfig.setMinIdle(32);
 
       return new JedisPool(readPoolConfig, config.readEndpointHost(), config.readEndpointPort());
     }
@@ -163,6 +165,8 @@ public final class RedisInteractionStore implements InteractionStore {
     JedisPool providesWriteJedisPool() {
       JedisPoolConfig writePoolConfig = new JedisPoolConfig();
       writePoolConfig.setMaxTotal(128);
+      writePoolConfig.setMaxIdle(128);
+      writePoolConfig.setMinIdle(32);
 
       return new JedisPool(writePoolConfig, config.writeEndpointHost(), config.writeEndpointPort());
     }
