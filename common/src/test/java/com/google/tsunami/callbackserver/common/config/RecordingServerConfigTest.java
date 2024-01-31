@@ -15,7 +15,7 @@
  */
 package com.google.tsunami.callbackserver.common.config;
 
-import static com.google.common.truth.Truth8.assertThat;
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableMap;
