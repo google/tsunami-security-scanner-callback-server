@@ -17,9 +17,9 @@
 package com.google.tsunami.callbackserver.common;
 
 import static com.google.common.truth.Truth.assertThat;
-import static com.google.common.truth.Truth8.assertThat;
 
 import com.google.common.net.HostAndPort;
+import com.google.common.truth.Truth8;
 import java.util.Optional;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -51,7 +51,7 @@ public final class CbidProcessorTest {
   public void extractCbidFromUrl_urlWithCbid_returnsCbid() {
     Optional<String> result = CbidProcessor.extractCbidFromUrl("http://anyDomain.com/" + FAKE_CBID);
 
-    assertThat(result).hasValue(FAKE_CBID);
+    Truth8.assertThat(result).hasValue(FAKE_CBID);
   }
 
   @Test
@@ -59,7 +59,7 @@ public final class CbidProcessorTest {
     Optional<String> result =
         CbidProcessor.extractCbidFromDomainInDnsProtocol(FAKE_CBID + ".anyDomain.com");
 
-    assertThat(result).hasValue(FAKE_CBID);
+    Truth8.assertThat(result).hasValue(FAKE_CBID);
   }
 
   @Test
@@ -67,7 +67,7 @@ public final class CbidProcessorTest {
     Optional<String> result =
         CbidProcessor.extractCbidFromDomainInDnsProtocol(FAKE_CBID_X20_ENCODED + ".anyDomain.com");
 
-    assertThat(result).hasValue(FAKE_CBID);
+    Truth8.assertThat(result).hasValue(FAKE_CBID);
   }
 
   @Test
@@ -75,7 +75,7 @@ public final class CbidProcessorTest {
     Optional<String> result =
         CbidProcessor.extractCbidFromDomainInDnsProtocol("anySubdomain.anyDomain.com");
 
-    assertThat(result).isEmpty();
+    Truth8.assertThat(result).isEmpty();
   }
 
   @Test
@@ -87,7 +87,7 @@ public final class CbidProcessorTest {
         CbidProcessor.extractCbidFromDomainInDnsProtocol(
             "http://anySubdomain.anyDomain.com/q=" + FAKE_CBID + ".anyDomain.com");
 
-    assertThat(result).hasValue(FAKE_CBID);
+    Truth8.assertThat(result).hasValue(FAKE_CBID);
   }
 
   @Test
@@ -95,7 +95,7 @@ public final class CbidProcessorTest {
     Optional<String> result =
         CbidProcessor.extractCbidFromDomainInHttpProtocol("http://" + FAKE_CBID + ".anyDomain.com");
 
-    assertThat(result).hasValue(FAKE_CBID);
+    Truth8.assertThat(result).hasValue(FAKE_CBID);
   }
 
   @Test
@@ -104,13 +104,13 @@ public final class CbidProcessorTest {
         CbidProcessor.extractCbidFromDomainInHttpProtocol(
             "http://anySubdomain.anyDomain.com/q=" + FAKE_CBID + ".anyDomain.com");
 
-    assertThat(result).isEmpty();
+    Truth8.assertThat(result).isEmpty();
   }
 
   @Test
   public void extractCbidFromUrl_urlWithoutCbid_returnsEmpty() {
     Optional<String> result = CbidProcessor.extractCbidFromUrl("http://anyDomain.com/");
 
-    assertThat(result).isEmpty();
+    Truth8.assertThat(result).isEmpty();
   }
 }
