@@ -19,7 +19,6 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.truth.Truth8;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -47,9 +46,9 @@ public final class StorageConfigTest {
     StorageConfig config =
         StorageConfig.fromRawData(ImmutableMap.of("in_memory", IN_MEMORY_STORAGE_CONFIG_DATA));
 
-    Truth8.assertThat(config.inMemoryStorageConfig())
+    assertThat(config.inMemoryStorageConfig())
         .hasValue(InMemoryStorageConfig.fromRawData(IN_MEMORY_STORAGE_CONFIG_DATA));
-    Truth8.assertThat(config.redisStorageConfig()).isEmpty();
+    assertThat(config.redisStorageConfig()).isEmpty();
   }
 
   @Test
@@ -57,8 +56,8 @@ public final class StorageConfigTest {
     StorageConfig config =
         StorageConfig.fromRawData(ImmutableMap.of("redis", REDIS_STORAGE_CONFIG_DATA));
 
-    Truth8.assertThat(config.inMemoryStorageConfig()).isEmpty();
-    Truth8.assertThat(config.redisStorageConfig())
+    assertThat(config.inMemoryStorageConfig()).isEmpty();
+    assertThat(config.redisStorageConfig())
         .hasValue(RedisStorageConfig.fromRawData(REDIS_STORAGE_CONFIG_DATA));
   }
 

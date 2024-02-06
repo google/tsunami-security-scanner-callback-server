@@ -19,7 +19,6 @@ import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.truth.Truth8;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -34,7 +33,7 @@ public final class HttpRecordingServerConfigTest {
         HttpRecordingServerConfig.fromRawData(ImmutableMap.of("port", 80, "worker_pool_size", 10));
 
     assertThat(config.port()).isEqualTo(80);
-    Truth8.assertThat(config.workerPoolSize()).hasValue(10);
+    assertThat(config.workerPoolSize()).hasValue(10);
   }
 
   @Test
@@ -43,7 +42,7 @@ public final class HttpRecordingServerConfigTest {
         HttpRecordingServerConfig.fromRawData(ImmutableMap.of("port", 80));
 
     assertThat(config.port()).isEqualTo(80);
-    Truth8.assertThat(config.workerPoolSize()).isEmpty();
+    assertThat(config.workerPoolSize()).isEmpty();
   }
 
   @Test
