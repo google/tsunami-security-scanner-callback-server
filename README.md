@@ -106,6 +106,38 @@ sudo iptables -t nat -D OUTPUT -p udp --dport 53 -j DNAT --to-destination 127.0.
 sudo iptables -t nat -D OUTPUT -p tcp --dport 53 -j DNAT --to-destination 127.0.0.1:8883
 ```
 
+## Interacting with the Callback Server
+
+1. Generating a secret, it should be an unique string
+
+```sh
+SECRET="<uniq_id>"
+```
+
+2. Create a SHA3 hashed callback ID
+
+```sh
+CBID=$(printf "${SECRET}" | openssl sha3-224 -binary | xxd -p)
+```
+
+3.1 Call callback server using HTTP
+
+```sh
+curl http://<callback_server_addr>:<recording_port>/${CBID}
+```
+
+3.2 Call callback server using DNS
+
+```sh
+dig ${CBID}.<callback_server_addr>
+```
+
+4. Verify callback is recorded using the original (unhashed) string.
+
+```sh
+curl "http://<callback_server_addr>:<polling_port>/?secret=${SECRET}"
+```
+
 ## Contributing
 
 Read how to [contribute to Tsunami](docs/contributing.md).
