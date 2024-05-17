@@ -36,6 +36,6 @@ idea {
 }
 
 dependencies {
-    compile deps.protobuf
-    compile deps.grpc_protobuf
+    implementation deps.protobuf
+    implementation deps.grpc_protobuf
 }

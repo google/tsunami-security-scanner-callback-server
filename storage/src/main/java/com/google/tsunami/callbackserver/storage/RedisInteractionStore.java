@@ -19,7 +19,6 @@ import static com.google.common.collect.ImmutableList.toImmutableList;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.annotations.VisibleForTesting.Visibility;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
@@ -44,10 +43,11 @@ import redis.clients.jedis.JedisPoolConfig;
 public final class RedisInteractionStore implements InteractionStore {
   // We use Redis EVAL command with this lua script to ensure atomicity when storing an interaction
   // with a TTL.
-  @VisibleForTesting(productionVisibility = Visibility.PRIVATE)
+  @VisibleForTesting
   static final String INTERACTION_STORE_CMD =
       "redis.call('RPUSH', KEYS[1], ARGV[1]); local ttl = redis.call('TTL', KEYS[1]); if ttl < 0"
           + " then redis.call('EXPIRE', KEYS[1], ARGV[2]); end";
+
   private final Clock utcClock;
   private final Duration interactionTtl;
   private final JedisPool readJedisPool;

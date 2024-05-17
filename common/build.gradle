@@ -1,18 +1,18 @@
 description = 'Tsunami Callback Server: Common'
 
 dependencies {
-    compile deps.autovalue
-    compile deps.bouncycastle_provider
-    compile deps.flogger, deps.flogger_google_ext, deps.flogger_backend
-    compile deps.guava
-    compile deps.guice
-    compile deps.javax_inject
-    compile deps.snakeyaml
-    compile deps.truth
+    implementation deps.autovalue
+    implementation deps.bouncycastle_provider
+    implementation deps.flogger, deps.flogger_google_ext, deps.flogger_backend
+    implementation deps.guava
+    implementation deps.guice
+    implementation deps.javax_inject
+    implementation deps.snakeyaml
+    implementation deps.truth
     annotationProcessor deps.autovalue_annotation_processor
 
-    testCompile deps.guava_testlib
-    testCompile deps.junit
-    testCompile deps.truth, deps.truth8, deps.truth_protobuf
+    testImplementation deps.guava_testlib
+    testImplementation deps.junit
+    testImplementation deps.truth, deps.truth8, deps.truth_protobuf
     testAnnotationProcessor deps.autovalue_annotation_processor
 }

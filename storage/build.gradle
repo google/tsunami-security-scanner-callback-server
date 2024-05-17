@@ -1,18 +1,18 @@
 description = 'Tsunami Callback Server: storage'
 
 dependencies {
-    compile project(':tcs-common')
-    compile project(':tcs-proto')
-    compile deps.flogger
-    compile deps.flogger_google_ext
-    compile deps.guava
-    compile deps.guice
-    compile deps.javax_inject
-    compile deps.jedis
-    compile deps.protobuf_util
+    implementation project(':tcs-common')
+    implementation project(':tcs-proto')
+    implementation deps.flogger
+    implementation deps.flogger_google_ext
+    implementation deps.guava
+    implementation deps.guice
+    implementation deps.javax_inject
+    implementation deps.jedis
+    implementation deps.protobuf_util
 
-    testCompile deps.guava_testlib
-    testCompile deps.junit
-    testCompile deps.mockito
-    testCompile deps.truth, deps.truth8, deps.truth_protobuf
+    testImplementation deps.guava_testlib
+    testImplementation deps.junit
+    testImplementation deps.mockito
+    testImplementation deps.truth, deps.truth8, deps.truth_protobuf
 }

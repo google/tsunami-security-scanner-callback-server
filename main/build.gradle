@@ -6,17 +6,17 @@ plugins {
 description = 'Tsunami Callback Server: main'
 
 dependencies {
-    compile project(':tcs-common')
-    compile project(':tcs-server')
-    compile project(':tcs-storage')
-    compile deps.flogger
-    compile deps.flogger_google_ext
-    compile deps.guava
-    compile deps.guice
-    compile deps.jcommander
+    implementation project(':tcs-common')
+    implementation project(':tcs-server')
+    implementation project(':tcs-storage')
+    implementation deps.flogger
+    implementation deps.flogger_google_ext
+    implementation deps.guava
+    implementation deps.guice
+    implementation deps.jcommander
 
-    testCompile deps.junit
-    testCompile deps.truth
+    testImplementation deps.junit
+    testImplementation deps.truth
 }
 
 application {
