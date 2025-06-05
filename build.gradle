@@ -1,7 +1,6 @@
-// Current gradle version 6.5.
-
 plugins {
-    id 'net.ltgt.errorprone' apply false
+    id 'net.ltgt.errorprone' apply false version "4.2.0"
+    id "com.gradleup.shadow" version "8.3.6"
 }
 
 subprojects {
@@ -11,6 +10,7 @@ subprojects {
     apply plugin: "signing"
 
     apply plugin: 'net.ltgt.errorprone'
+    apply plugin: 'com.gradleup.shadow'
 
     group = 'com.google.tsunami'
     version = '0.0.1-SNAPSHOT' // Current Tsunami Callback Server version
@@ -27,7 +27,7 @@ subprojects {
         // All dependency versions.
         autoValueVersion = '1.10.4'
         bouncycastleVersion = '1.64'
-        errorproneVersion = '2.4.0'
+        errorproneVersion = '2.38.0'
         floggerVersion = '0.5.1'
         grpcVersion = '1.29.0'
         guavaVersion = '31.0.1-jre'
@@ -117,12 +117,6 @@ subprojects {
                     'Target-Compatibility': targetCompatibility)
         }
 
-        javadoc.options {
-            encoding = 'UTF-8'
-            use = true
-            links 'https://docs.oracle.com/en/java/javase/11/docs/api/'
-        }
-
         // Log stacktrace to console when test fails.
         test {
             testLogging {
@@ -194,18 +188,11 @@ subprojects {
         }
 
         signing {
-            required false
             sign publishing.publications.maven
         }
 
-        plugins.withId('com.github.johnrengelman.shadow') {
-            publishing {
-                publications {
-                    maven {
-                        artifact project.tasks.shadowJar
-                    }
-                }
-            }
+        shadowJar {
+            archiveClassifier = null
         }
     }
 }

@@ -16,3 +16,15 @@ dependencies {
     testImplementation deps.mockito
     testImplementation deps.truth, deps.truth8, deps.truth_protobuf
 }
+
+tasks.named("compileJava") {
+    dependsOn(":tcs-common:shadowJar")
+}
+
+tasks.named("shadowJar") {
+    dependsOn(":tcs-proto:shadowJar")
+}
+
+tasks.named("javadoc") {
+    dependsOn(":tcs-proto:shadowJar")
+}

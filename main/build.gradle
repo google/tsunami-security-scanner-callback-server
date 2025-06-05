@@ -1,6 +1,6 @@
 plugins {
     id 'application'
-    id 'com.github.johnrengelman.shadow'
+    id "com.gradleup.shadow" version "8.3.6"
 }
 
 description = 'Tsunami Callback Server: main'
@@ -24,6 +24,6 @@ application {
 }
 
 shadowJar {
-    classifier = 'cli'
+    archiveClassifier = 'cli'
     exclude '*.proto'
 }

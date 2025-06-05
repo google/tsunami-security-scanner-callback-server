@@ -25,6 +25,14 @@ protobuf {
     }
     generateProtoTasks {
         all()*.plugins { grpc {} }
+        all().configureEach {
+            task -> {
+                dependsOn("processResources")
+                dependsOn("extractProto")
+                dependsOn("sourcesJar")
+                dependsOn("generatePomFileForMavenPublication")
+            }
+        }
     }
 }
 
@@ -38,4 +46,11 @@ idea {
 dependencies {
     implementation deps.protobuf
     implementation deps.grpc_protobuf
+}
+
+
+gradle.projectsEvaluated {
+    tasks.withType(ProcessResources) {
+        dependsOn("extractProto")
+    }
 }
