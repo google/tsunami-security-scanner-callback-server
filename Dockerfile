@@ -6,7 +6,7 @@ FROM ghcr.io/google/tsunami-scanner-devel:latest AS build
 
 WORKDIR /usr/repos/tsunami-security-scanner-callback-server
 COPY . .
-RUN ./gradlew shadowJar
+RUN gradle shadowJar
 RUN mkdir /usr/tsunami
 RUN find . -name 'tcs-main-*.jar' -exec cp {} /usr/tsunami/tsunami-tcs.jar \; \
     && cp tcs_config.yaml /usr/tsunami/tcs_config.yaml
