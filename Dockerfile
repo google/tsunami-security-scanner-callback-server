@@ -1,14 +1,6 @@
 # Stage 1: Build phase
 
-FROM ubuntu:latest AS build
-
-## Dependencies
-
-RUN apt-get update \
- && apt-get install -y --no-install-recommends openjdk-21-jdk \
- && rm -rf /var/lib/apt/lists/* \
- && rm -rf /usr/share/doc && rm -rf /usr/share/man \
- && apt-get clean
+FROM ghcr.io/google/tsunami-scanner-devel:latest AS build
 
 # Compile the callback server
 
