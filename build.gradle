@@ -5,9 +5,7 @@ plugins {
 
 subprojects {
     apply plugin: 'java'
-    apply plugin: 'maven-publish'
     apply plugin: 'idea'
-    apply plugin: "signing"
 
     apply plugin: 'net.ltgt.errorprone'
     apply plugin: 'com.gradleup.shadow'
@@ -129,70 +127,4 @@ subprojects {
         }
     }
 
-    plugins.withId('maven-publish') {
-        publishing {
-            publications {
-                maven(MavenPublication) {
-                    from components.java
-
-                    pom {
-                        name = project.group + ':' + project.name
-                        url = 'https://github.com/google/tsunami-security-scanner-callback-server'
-                        afterEvaluate {
-                            // description is not available until evaluated.
-                            description = project.description
-                        }
-
-                        licenses {
-                            license {
-                                name = 'Apache 2.0'
-                                url = 'https://opensource.org/licenses/Apache-2.0'
-                            }
-                        }
-
-                        scm {
-                            connection = 'scm:git:https://github.com/google/tsunami-security-scanner-callback-server.git'
-                            developerConnection = 'scm:git:git@github.com:google/tsunami-security-scanner-callback-server.git'
-                            url = 'https://github.com/google/tsunami-security-scanner-callback-server'
-                        }
-
-                        developers {
-                            developer {
-                                id = 'com.google.tsunami'
-                                name = 'Tsunami Contributors'
-                                email = 'tsunami-security-scanner@googlegroups.com'
-                                url = 'https://github.com/google/tsunami-security-scanner-callback-server'
-                                organization = 'Tsunami Authors'
-                                organizationUrl = 'https://www.google.com'
-                            }
-                        }
-                    }
-                }
-            }
-            repositories {
-                maven {
-                    def stagingUrl = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
-                    def releaseUrl = stagingUrl
-                    def snapshotUrl = 'https://oss.sonatype.org/content/repositories/snapshots/'
-                    url = version.endsWith('SNAPSHOT') ? snapshotUrl : releaseUrl
-                    credentials {
-                        if (rootProject.hasProperty('ossrhUsername')
-                                && rootProject.hasProperty('ossrhPassword')) {
-                            username = rootProject.ossrhUsername
-                            password = rootProject.ossrhPassword
-                        }
-                    }
-                }
-                mavenLocal()
-            }
-        }
-
-        signing {
-            sign publishing.publications.maven
-        }
-
-        shadowJar {
-            archiveClassifier = null
-        }
-    }
 }
