@@ -3,18 +3,21 @@ description = 'Tsunami Callback Server: storage'
 dependencies {
     implementation project(':tcs-common')
     implementation project(':tcs-proto')
-    implementation deps.flogger
-    implementation deps.flogger_google_ext
-    implementation deps.guava
-    implementation deps.guice
-    implementation deps.javax_inject
-    implementation deps.jedis
-    implementation deps.protobuf_util
 
-    testImplementation deps.guava_testlib
-    testImplementation deps.junit
-    testImplementation deps.mockito
-    testImplementation deps.truth, deps.truth8, deps.truth_protobuf
+    implementation "com.google.flogger:flogger:0.5.1"
+    implementation "com.google.flogger:google-extensions:0.5.1"
+    implementation "com.google.guava:guava:31.0.1-jre"
+    implementation "com.google.inject:guice:6.0.0"
+    implementation "javax.inject:javax.inject:1"
+    implementation "redis.clients:jedis:2.9.0"
+    implementation "com.google.protobuf:protobuf-java-util:3.11.4"
+
+    testImplementation "com.google.guava:guava-testlib:1.29.0"
+    testImplementation "junit:junit:4.13"
+    testImplementation "org.mockito:mockito-core:5.12.0"
+    testImplementation "com.google.truth:truth:1.0.1"
+    testImplementation "com.google.truth.extensions:truth-java8-extension:1.0.1"
+    testImplementation "com.google.truth.extensions:truth-proto-extension:1.0.1"
 }
 
 tasks.named("compileJava") {

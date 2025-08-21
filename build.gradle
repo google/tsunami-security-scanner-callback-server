@@ -21,65 +21,9 @@ subprojects {
         mavenLocal()
     }
 
-    ext {
-        // All dependency versions.
-        autoValueVersion = '1.10.4'
-        bouncycastleVersion = '1.64'
-        errorproneVersion = '2.38.0'
-        floggerVersion = '0.5.1'
-        grpcVersion = '1.29.0'
-        guavaVersion = '31.0.1-jre'
-        guiceVersion = '6.0.0'
-        javaxInjectVersion = '1'
-        jedisVersion = '2.9.0'
-        jcommanderVersion = '1.48'
-        nettyVersion = '4.1.72.Final'
-        protobufVersion = '3.11.4'
-        protocVersion = protobufVersion
-        snakeyamlVersion = '1.26'
-        junitVersion = '4.13'
-        mockitoVersion = '5.12.0'
-        truthVersion = '1.0.1'
-
-        // All Tsunami Callback Server dependencies.
-        deps = [
-                autovalue: "com.google.auto.value:auto-value-annotations:${autoValueVersion}",
-                autovalue_annotation_processor: "com.google.auto.value:auto-value:${autoValueVersion}",
-                bouncycastle_provider: "org.bouncycastle:bcprov-jdk15on:${bouncycastleVersion}",
-                errorprone: "com.google.errorprone:error_prone_annotations:${errorproneVersion}",
-                flogger: "com.google.flogger:flogger:${floggerVersion}",
-                flogger_google_ext: "com.google.flogger:google-extensions:${floggerVersion}",
-                flogger_backend: "com.google.flogger:flogger-system-backend:${floggerVersion}",
-                guava: "com.google.guava:guava:${guavaVersion}",
-                guice: "com.google.inject:guice:${guiceVersion}",
-                guice_assisted: "com.google.inject.extensions:guice-assistedinject:${guiceVersion}",
-                grpc_protobuf: "io.grpc:grpc-protobuf:${grpcVersion}",
-                javax_inject: "javax.inject:javax.inject:${javaxInjectVersion}",
-                jedis: "redis.clients:jedis:${jedisVersion}",
-                jcommander: "com.beust:jcommander:${jcommanderVersion}",
-                netty_buffer: "io.netty:netty-buffer:${nettyVersion}",
-                netty_codec_dns: "io.netty:netty-codec-dns:${nettyVersion}",
-                netty_codec_http: "io.netty:netty-codec-http:${nettyVersion}",
-                netty_common: "io.netty:netty-common:${nettyVersion}",
-                netty_transport: "io.netty:netty-transport:${nettyVersion}",
-                protobuf: "com.google.protobuf:protobuf-java:${protobufVersion}",
-                protobuf_lite: "com.google.protobuf:protobuf-javalite:${protobufVersion}",
-                protobuf_util: "com.google.protobuf:protobuf-java-util:${protobufVersion}",
-                snakeyaml: "org.yaml:snakeyaml:${snakeyamlVersion}",
-
-                // Test dependencies.
-                guava_testlib: "com.google.guava:guava-testlib:${guavaVersion}",
-                junit: "junit:junit:${junitVersion}",
-                mockito: "org.mockito:mockito-core:${mockitoVersion}",
-                truth: "com.google.truth:truth:${truthVersion}",
-                truth8: "com.google.truth.extensions:truth-java8-extension:${truthVersion}",
-                truth_protobuf: "com.google.truth.extensions:truth-proto-extension:${truthVersion}",
-        ]
-    }
-
     if (rootProject.properties.get('errorProne', true)) {
         dependencies {
-            errorprone "com.google.errorprone:error_prone_core:${errorproneVersion}"
+            errorprone "com.google.errorprone:error_prone_core:2.38.0"
             errorproneJavac 'com.google.errorprone:javac:9+181-r4173-1'
         }
 

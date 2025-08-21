@@ -4,17 +4,26 @@ dependencies {
     implementation project(':tcs-common')
     implementation project(':tcs-proto')
     implementation project(':tcs-storage')
-    implementation deps.flogger
-    implementation deps.flogger_google_ext
-    implementation deps.guava
-    implementation deps.guice
-    implementation deps.javax_inject
-    implementation deps.netty_buffer, deps.netty_codec_dns, deps.netty_codec_http, deps.netty_common, deps.netty_transport
-    implementation deps.protobuf, deps.protobuf_lite, deps.protobuf_util
 
-    testImplementation deps.guava_testlib
-    testImplementation deps.junit
-    testImplementation deps.truth, deps.truth8, deps.truth_protobuf
+    implementation "com.google.flogger:flogger:0.5.1"
+    implementation "com.google.flogger:google-extensions:0.5.1"
+    implementation "com.google.guava:guava:31.0.1-jre"
+    implementation "com.google.inject:guice:6.0.0"
+    implementation "javax.inject:javax.inject:1"
+    implementation "io.netty:netty-buffer:4.1.72.Final"
+    implementation "io.netty:netty-codec-dns:4.1.72.Final"
+    implementation "io.netty:netty-codec-http:4.1.72.Final"
+    implementation "io.netty:netty-common:4.1.72.Final"
+    implementation "io.netty:netty-transport:4.1.72.Final"
+    implementation "com.google.protobuf:protobuf-java:3.11.4"
+    implementation "com.google.protobuf:protobuf-javalite:3.11.4"
+    implementation "com.google.protobuf:protobuf-java-util:3.11.4"
+
+    testImplementation "com.google.guava:guava-testlib:1.29.0"
+    testImplementation "junit:junit:4.13"
+    testImplementation "com.google.truth:truth:1.0.1"
+    testImplementation "com.google.truth.extensions:truth-java8-extension:1.0.1"
+    testImplementation "com.google.truth.extensions:truth-proto-extension:1.0.1"
 }
 
 tasks.named("shadowJar") {

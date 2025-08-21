@@ -16,11 +16,11 @@ sourceSets {
 protobuf {
     generatedFilesBaseDir = "${projectDir}/build/generated"
     protoc {
-        artifact = "com.google.protobuf:protoc:${protocVersion}"
+        artifact = "com.google.protobuf:protoc:3.11.4"
     }
     plugins {
         grpc {
-            artifact = "io.grpc:protoc-gen-grpc-java:${grpcVersion}"
+            artifact = "io.grpc:protoc-gen-grpc-java:1.29.0"
         }
     }
     generateProtoTasks {
@@ -43,8 +43,8 @@ idea {
 }
 
 dependencies {
-    implementation deps.protobuf
-    implementation deps.grpc_protobuf
+    implementation "com.google.protobuf:protobuf-java:3.11.4"
+    implementation "io.grpc:grpc-protobuf:1.29.0"
 }
 
 
