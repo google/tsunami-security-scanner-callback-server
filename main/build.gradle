@@ -10,14 +10,14 @@ dependencies {
     implementation project(':tcs-server')
     implementation project(':tcs-storage')
 
-    implementation "com.google.flogger:flogger:0.5.1"
-    implementation "com.google.flogger:google-extensions:0.5.1"
-    implementation "com.google.guava:guava:31.0.1-jre"
+    implementation "com.google.flogger:flogger:0.9"
+    implementation "com.google.flogger:google-extensions:0.9"
+    implementation "com.google.guava:guava:33.0.0-jre"
     implementation "com.google.inject:guice:6.0.0"
     implementation "com.beust:jcommander:1.48"
 
-    testImplementation "junit:junit:4.13"
-    testImplementation "com.google.truth:truth:1.0.1"
+    testImplementation "junit:junit:4.13.2"
+    testImplementation "com.google.truth:truth:1.4.4"
 }
 
 application {

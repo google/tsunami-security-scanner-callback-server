@@ -43,8 +43,8 @@ idea {
 }
 
 dependencies {
-    implementation "com.google.protobuf:protobuf-java:3.11.4"
-    implementation "io.grpc:grpc-protobuf:1.29.0"
+    implementation "com.google.protobuf:protobuf-java:3.25.5"
+    implementation "io.grpc:grpc-protobuf:1.60.0"
 }
 
 
