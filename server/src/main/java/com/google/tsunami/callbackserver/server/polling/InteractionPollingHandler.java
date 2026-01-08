@@ -60,7 +60,7 @@ final class InteractionPollingHandler extends HttpHandler {
     ImmutableList<Interaction> interactions = interactionStore.get(cbid);
 
     if (interactions.isEmpty()) {
-      logger.atInfo().log(
+      logger.atFine().log(
           "Interaction with secret '%s' NOT found and polled by IP %s",
           secret, maybeGetClientAddrAsString(clientAddr));
       tcsEventsObserver.onInteractionNotFound();
