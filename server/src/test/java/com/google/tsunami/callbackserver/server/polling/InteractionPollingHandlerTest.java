@@ -32,6 +32,7 @@ import com.google.tsunami.callbackserver.storage.InMemoryInteractionStore;
 import com.google.tsunami.callbackserver.storage.InteractionStore;
 import com.google.tsunami.callbackserver.storage.InteractionStore.InteractionType;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
+import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import java.net.InetAddress;
@@ -112,6 +113,45 @@ public final class InteractionPollingHandlerTest {
                 .setHasHttpInteraction(false)
                 .build());
     verify(eventsObserverMock).onDnsInteractionFound();
+  }
+
+  @Test
+  public void handleRequest_whenSecretInHeader_returnsRecordedInteraction() {
+    interactionStore.add(FAKE_CBID, InteractionType.HTTP_INTERACTION);
+    FullHttpRequest request =
+        new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/");
+    request.headers().add(InteractionPollingHandler.SECRET_HEADER_NAME, FAKE_SECRET);
+
+    Message response = handler.handleRequest(request, TEST_CLIENT_ADDRESS);
+
+    assertThat(response)
+        .isEqualTo(
+            PollingResult.newBuilder()
+                .setHasDnsInteraction(false)
+                .setHasHttpInteraction(true)
+                .build());
+    verify(eventsObserverMock).onHttpInteractionFound();
+  }
+
+  @Test
+  public void handleRequest_whenSecretInBothHeaderAndQuery_headerWins() {
+    interactionStore.add(FAKE_CBID, InteractionType.HTTP_INTERACTION);
+    // Query parameter holds a wrong secret; header holds the right one. If the handler
+    // ignores the header and reads only the query param, the cbid will not match and the
+    // request will 404 — which would fail this test.
+    FullHttpRequest request =
+        new DefaultFullHttpRequest(
+            HttpVersion.HTTP_1_1, HttpMethod.GET, "/?secret=wrong_secret");
+    request.headers().add(InteractionPollingHandler.SECRET_HEADER_NAME, FAKE_SECRET);
+
+    Message response = handler.handleRequest(request, TEST_CLIENT_ADDRESS);
+
+    assertThat(response)
+        .isEqualTo(
+            PollingResult.newBuilder()
+                .setHasDnsInteraction(false)
+                .setHasHttpInteraction(true)
+                .build());
   }
 
   @Test

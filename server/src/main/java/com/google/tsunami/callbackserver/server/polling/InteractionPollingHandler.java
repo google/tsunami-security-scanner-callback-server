@@ -31,11 +31,20 @@ import com.google.tsunami.callbackserver.storage.InteractionStore;
 import io.netty.handler.codec.http.FullHttpRequest;
 import java.net.InetAddress;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
 
 final class InteractionPollingHandler extends HttpHandler {
   private static final String ENDPOINT_NAME = "POLLING";
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
+
+  // Per-scan correlation secret used to be sent in the URL query string (?secret=...).
+  // URL query strings are routinely captured by reverse-proxy access logs, cloud LB request
+  // logs, browser history / Referer, ps-output of debugging curl invocations, and CDN
+  // analytics — none of which are appropriate channels for a secret. Tsunami clients now
+  // send the secret in this header instead. The query-string form remains accepted as a
+  // deprecated fallback so older client releases keep polling correctly until they upgrade.
+  static final String SECRET_HEADER_NAME = "X-Tsunami-TCS-Secret";
 
   private final InteractionStore interactionStore;
   private final CbidGenerator cbidGenerator;
@@ -52,10 +61,7 @@ final class InteractionPollingHandler extends HttpHandler {
 
   @Override
   protected Message handleRequest(FullHttpRequest request, Optional<InetAddress> clientAddr) {
-    String secret =
-        getQueryParameter(request.uri(), "secret")
-            .orElseThrow(
-                () -> new IllegalArgumentException("Required parameter 'secret' not found."));
+    String secret = readSecret(request);
     String cbid = cbidGenerator.generate(secret);
     ImmutableList<Interaction> interactions = interactionStore.get(cbid);
 
@@ -88,5 +94,27 @@ final class InteractionPollingHandler extends HttpHandler {
         .setHasDnsInteraction(hasDnsInteractions)
         .setHasHttpInteraction(hasHttpInteractions)
         .build();
+  }
+
+  // Reads the secret from the X-Tsunami-TCS-Secret header when present, falling back to the
+  // legacy ?secret= query parameter so older Tsunami clients keep working through the
+  // deprecation window. Header takes precedence when both are present.
+  private static String readSecret(FullHttpRequest request) {
+    String headerSecret = request.headers().get(SECRET_HEADER_NAME);
+    if (headerSecret != null && !headerSecret.isEmpty()) {
+      return headerSecret;
+    }
+    Optional<String> querySecret = getQueryParameter(request.uri(), "secret");
+    if (querySecret.isPresent()) {
+      logger.atInfo().atMostEvery(60, TimeUnit.SECONDS).log(
+          "Polling request used the deprecated '?secret=' query parameter. Upgrade the"
+              + " Tsunami client so the secret is sent via the %s header instead.",
+          SECRET_HEADER_NAME);
+      return querySecret.get();
+    }
+    throw new IllegalArgumentException(
+        String.format(
+            "Required secret not found. Expected '%s' header or '?secret=' query parameter.",
+            SECRET_HEADER_NAME));
   }
 }
