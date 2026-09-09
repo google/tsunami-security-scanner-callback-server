@@ -15,6 +15,7 @@
  */
 package com.google.tsunami.callbackserver.server.polling;
 
+import static com.google.common.truth.Truth.assertThat;
 import static com.google.common.truth.extensions.proto.ProtoTruth.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.verify;
@@ -22,6 +23,7 @@ import static org.mockito.Mockito.verify;
 import com.google.common.net.InetAddresses;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
+import com.google.protobuf.Empty;
 import com.google.protobuf.Message;
 import com.google.tsunami.callbackserver.common.Sha3CbidGenerator;
 import com.google.tsunami.callbackserver.common.time.testing.FakeUtcClockModule;
@@ -31,8 +33,11 @@ import com.google.tsunami.callbackserver.server.common.monitoring.TcsEventsObser
 import com.google.tsunami.callbackserver.storage.InMemoryInteractionStore;
 import com.google.tsunami.callbackserver.storage.InteractionStore;
 import com.google.tsunami.callbackserver.storage.InteractionStore.InteractionType;
+import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
+import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import java.net.InetAddress;
 import java.util.Optional;
@@ -115,13 +120,13 @@ public final class InteractionPollingHandlerTest {
   }
 
   @Test
-  public void handleRequest_whenMissingSecret_throws() {
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            handler.handleRequest(
-                new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/"),
-                TEST_CLIENT_ADDRESS));
+  public void handleRequest_whenMissingSecret_returnsEmpty() {
+    Message response =
+        handler.handleRequest(
+            new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/"),
+            TEST_CLIENT_ADDRESS);
+
+    assertThat(response).isEqualTo(Empty.getDefaultInstance());
   }
 
   @Test
@@ -134,5 +139,15 @@ public final class InteractionPollingHandlerTest {
                     HttpVersion.HTTP_1_1, HttpMethod.GET, "/?secret=not_found"),
                 TEST_CLIENT_ADDRESS));
     verify(eventsObserverMock).onInteractionNotFound();
+  }
+
+  @Test
+  public void channelRead_whenMissingSecret_returnsOkStatus() {
+    EmbeddedChannel channel = new EmbeddedChannel(handler);
+    channel.writeInbound(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/"));
+    FullHttpResponse response = channel.readOutbound();
+
+    assertThat(response.status()).isEqualTo(HttpResponseStatus.OK);
+    assertThat(response.status().code()).isEqualTo(200);
   }
 }

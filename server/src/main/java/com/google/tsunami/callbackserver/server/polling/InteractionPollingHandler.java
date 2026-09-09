@@ -20,6 +20,7 @@ import static com.google.tsunami.callbackserver.server.common.RequestLogger.mayb
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.flogger.GoogleLogger;
+import com.google.protobuf.Empty;
 import com.google.protobuf.Message;
 import com.google.tsunami.callbackserver.common.CbidGenerator;
 import com.google.tsunami.callbackserver.proto.Interaction;
@@ -52,10 +53,13 @@ final class InteractionPollingHandler extends HttpHandler {
 
   @Override
   protected Message handleRequest(FullHttpRequest request, Optional<InetAddress> clientAddr) {
-    String secret =
-        getQueryParameter(request.uri(), "secret")
-            .orElseThrow(
-                () -> new IllegalArgumentException("Required parameter 'secret' not found."));
+    Optional<String> secretParam = getQueryParameter(request.uri(), "secret");
+    if (secretParam.isEmpty()) {
+      // Health check requests (e.g. from GCLB / GKE Gateway) probe "/" without query parameters.
+      // Return 200 OK with an empty response so that serving-port health checks succeed.
+      return Empty.getDefaultInstance();
+    }
+    String secret = secretParam.get();
     String cbid = cbidGenerator.generate(secret);
     ImmutableList<Interaction> interactions = interactionStore.get(cbid);
 
