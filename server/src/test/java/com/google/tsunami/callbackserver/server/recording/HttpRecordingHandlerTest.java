@@ -111,6 +111,27 @@ public final class HttpRecordingHandlerTest {
   }
 
   @Test
+  public void handleRequest_whenValidCbidEmbeddedInPath_savesInteraction() {
+    var unused =
+        handler.handleRequest(
+            buildRequest("127.0.0.1", "/img%20" + FAKE_CBID), TEST_CLIENT_ADDRESS);
+
+    assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
+    verify(eventsObserverMock).onHttpInteractionRecorded();
+  }
+
+  @Test
+  public void handleRequest_whenValidCbidInQueryParameter_savesInteraction() {
+    var unused =
+        handler.handleRequest(
+            buildRequest("127.0.0.1", "/fetch?url=http://127.0.0.1/" + FAKE_CBID),
+            TEST_CLIENT_ADDRESS);
+
+    assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
+    verify(eventsObserverMock).onHttpInteractionRecorded();
+  }
+
+  @Test
   public void handleRequest_whenInvalidCbidInPath_ignoresPathValue() {
     var unused =
         handler.handleRequest(buildRequest("127.0.0.1", "/RANDOM_PATH"), TEST_CLIENT_ADDRESS);
