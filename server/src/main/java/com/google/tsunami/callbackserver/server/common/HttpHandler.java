@@ -82,6 +82,12 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
     var stopwatch = Stopwatch.createStarted();
     var clientAddr = requestLogger.logRequestAndGetClientAddr(endpointName, ctx, request);
     try {
+      Optional<String> redirectUrl = getRedirectUrl(request);
+      if (redirectUrl.isPresent()) {
+        handleRequest(request, clientAddr);
+        replyRedirect(ctx, redirectUrl.get(), stopwatch);
+        return;
+      }
       String responseContent = JsonFormat.printer().print(handleRequest(request, clientAddr));
       replyJson(ctx, responseContent, stopwatch);
     } catch (NotFoundException ex) {
@@ -103,6 +109,25 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
         replyInternalError(ctx, stopwatch, ex);
       }
     }
+  }
+
+  /**
+   * Returns a redirect target URL if the request should be redirected, or empty otherwise.
+   * By default, returns empty. Handlers supporting redirects can override this.
+   */
+  protected Optional<String> getRedirectUrl(FullHttpRequest request) {
+    return Optional.empty();
+  }
+
+  private void replyRedirect(ChannelHandlerContext ctx, String location, Stopwatch stopwatch) {
+    FullHttpResponse response =
+        new DefaultFullHttpResponse(
+            HttpVersion.HTTP_1_1, HttpResponseStatus.FOUND, Unpooled.EMPTY_BUFFER);
+    response.headers().set(HttpHeaderNames.LOCATION, location);
+    response.headers().set(HttpHeaderNames.CONTENT_LENGTH, 0);
+    ctx.writeAndFlush(response);
+    tcsEventsObserver.onSuccessfulHttpRpc(
+        endpointName, stopwatch.elapsed(), HttpResponseStatus.FOUND);
   }
 
   private void replyJson(ChannelHandlerContext ctx, String jsonContent, Stopwatch stopwatch) {

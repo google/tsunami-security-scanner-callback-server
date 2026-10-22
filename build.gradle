@@ -21,6 +21,12 @@ subprojects {
         mavenLocal()
     }
 
+    configurations.all {
+        resolutionStrategy {
+            force 'com.google.protobuf:protobuf-java:3.25.5'
+        }
+    }
+
     if (rootProject.properties.get('errorProne', true)) {
         dependencies {
             errorprone "com.google.errorprone:error_prone_core:2.38.0"

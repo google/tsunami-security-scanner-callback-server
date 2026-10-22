@@ -16,7 +16,7 @@ sourceSets {
 protobuf {
     generatedFilesBaseDir = "${projectDir}/build/generated"
     protoc {
-        artifact = "com.google.protobuf:protoc:3.11.4"
+        artifact = "com.google.protobuf:protoc:3.25.5"
     }
     plugins {
         grpc {
@@ -30,6 +30,7 @@ protobuf {
                 dependsOn("processResources")
                 dependsOn("extractProto")
                 dependsOn("sourcesJar")
+                mustRunAfter("extractTestProto")
             }
         }
     }
