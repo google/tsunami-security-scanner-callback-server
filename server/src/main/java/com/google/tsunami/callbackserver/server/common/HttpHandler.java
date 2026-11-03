@@ -82,6 +82,9 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
     var stopwatch = Stopwatch.createStarted();
     var clientAddr = requestLogger.logRequestAndGetClientAddr(endpointName, ctx, request);
     try {
+      if (maybeHandleCustomResponse(ctx, request, clientAddr, stopwatch)) {
+        return;
+      }
       String responseContent = JsonFormat.printer().print(handleRequest(request, clientAddr));
       replyJson(ctx, responseContent, stopwatch);
     } catch (NotFoundException ex) {
@@ -105,11 +108,32 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
     }
   }
 
+  /**
+   * Allows subclasses to write a custom non-JSON HTTP response (including streaming responses)
+   * directly to {@code ctx}. Returns {@code true} if the request was handled, or {@code false} to
+   * fall back to {@link #handleRequest}.
+   *
+   * <p>Subclasses that return {@code true} are responsible for recording RPC completion via {@link
+   * #recordSuccessfulHttpRpc}.
+   */
+  protected boolean maybeHandleCustomResponse(
+      ChannelHandlerContext ctx,
+      FullHttpRequest request,
+      Optional<InetAddress> clientAddr,
+      Stopwatch stopwatch)
+      throws Exception {
+    return false;
+  }
+
+  /** Records a completed HTTP response and its elapsed duration with {@link #tcsEventsObserver}. */
+  protected final void recordSuccessfulHttpRpc(Stopwatch stopwatch, HttpResponseStatus status) {
+    tcsEventsObserver.onSuccessfulHttpRpc(endpointName, stopwatch.elapsed(), status);
+  }
+
   private void replyJson(ChannelHandlerContext ctx, String jsonContent, Stopwatch stopwatch) {
     ctx.writeAndFlush(
         buildResponse(HttpResponseStatus.OK, jsonContent, HttpHeaderValues.APPLICATION_JSON));
-    tcsEventsObserver.onSuccessfulHttpRpc(
-        endpointName, stopwatch.elapsed(), HttpResponseStatus.OK);
+    recordSuccessfulHttpRpc(stopwatch, HttpResponseStatus.OK);
   }
 
   private void replyBadRequest(ChannelHandlerContext ctx, Stopwatch stopwatch, Exception ex) {
