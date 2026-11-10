@@ -347,6 +347,33 @@ public final class HttpRecordingHandlerTest {
   }
 
   @Test
+  public void
+      channelRead_whenNodeFetchPlainHttpClientRequestsBrotliPreset_recordsPrimaryCbidAndServesBrotli() {
+    EmbeddedChannel channel = new EmbeddedChannel(handler);
+    DefaultFullHttpRequest request =
+        buildRequest(
+            "127.0.0.1:8080",
+            "/" + FAKE_CBID + "?response=brotli_valid&no_br_cbid=" + FAKE_NO_BR_CBID);
+    request.headers().set(HttpHeaderNames.USER_AGENT, "node");
+    request.headers().set(HttpHeaderNames.ACCEPT_ENCODING, "gzip, deflate");
+
+    channel.writeInbound(request);
+    FullHttpResponse response = channel.readOutbound();
+
+    try {
+      assertThat(response.status()).isEqualTo(HttpResponseStatus.OK);
+      assertThat(response.headers().get(HttpHeaderNames.CONTENT_ENCODING)).isEqualTo("br");
+      assertThat(ByteString.copyFrom(readBytes(response.content())))
+          .isEqualTo(BrotliResponsePresets.VALID_BROTLI);
+      assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
+      assertThat(interactionStore.get(FAKE_NO_BR_CBID)).isEmpty();
+    } finally {
+      ReferenceCountUtil.release(response);
+      channel.finishAndReleaseAll();
+    }
+  }
+
+  @Test
   public void channelRead_whenMalformedNoBrCbidAndAcceptEncodingNone_ignoresMalformedCbid() {
     EmbeddedChannel channel = new EmbeddedChannel(handler);
     DefaultFullHttpRequest request =

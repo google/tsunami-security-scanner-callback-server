@@ -179,6 +179,34 @@ public final class BrotliResponsePresetsTest {
   }
 
   @Test
+  public void isNodeFetchPlainHttpBrotliClient_whenNodeOrUndiciWithGzipDeflate_returnsTrue() {
+    assertThat(
+            BrotliResponsePresets.isNodeFetchPlainHttpBrotliClient(
+                "node", ImmutableList.of("gzip, deflate")))
+        .isTrue();
+    assertThat(
+            BrotliResponsePresets.isNodeFetchPlainHttpBrotliClient(
+                "undici", ImmutableList.of("gzip, deflate")))
+        .isTrue();
+    assertThat(
+            BrotliResponsePresets.isNodeFetchPlainHttpBrotliClient(
+                "node", ImmutableList.of("gzip, deflate, br;q=0")))
+        .isFalse();
+    assertThat(
+            BrotliResponsePresets.isNodeFetchPlainHttpBrotliClient(
+                "node", ImmutableList.of("none")))
+        .isFalse();
+    assertThat(
+            BrotliResponsePresets.isNodeFetchPlainHttpBrotliClient(
+                "curl/8.5.0", ImmutableList.of("gzip, deflate")))
+        .isFalse();
+    assertThat(
+            BrotliResponsePresets.isNodeFetchPlainHttpBrotliClient(
+                null, ImmutableList.of("gzip, deflate")))
+        .isFalse();
+  }
+
+  @Test
   public void buildEmptyPlainResponse_whenCalled_setsSafeNoSniffHeadersAndEmptyBody() {
     FullHttpResponse response = BrotliResponsePresets.buildEmptyPlainResponse();
     try {

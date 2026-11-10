@@ -306,8 +306,14 @@ enum BrotliResponsePresets implements RecordingResponsePreset {
       Consumer<HttpResponseStatus> rpcCompletionRecorder) {
     // If the client did not advertise Brotli support (for example, when libcurl/WP_Http retries a
     // failed Brotli stream with `Accept-Encoding: none`), serve an empty plain-text 200 OK response
-    // and record the optional `no_br_cbid` token instead of the primary CBID.
-    if (!acceptsBrotli(request.headers().getAll(HttpHeaderNames.ACCEPT_ENCODING))) {
+    // and record the optional `no_br_cbid` token instead of the primary CBID. Note that Node.js
+    // `fetch()` (`undici`) only includes `br` in `Accept-Encoding` on `https://` URLs and sends
+    // `User-Agent: node` with `Accept-Encoding: gzip, deflate` on plain `http://` callback URLs
+    // while still decompressing `Content-Encoding: br` responses via `node:zlib`.
+    List<String> acceptEncodingHeaders = request.headers().getAll(HttpHeaderNames.ACCEPT_ENCODING);
+    if (!acceptsBrotli(acceptEncodingHeaders)
+        && !isNodeFetchPlainHttpBrotliClient(
+            request.headers().get(HttpHeaderNames.USER_AGENT), acceptEncodingHeaders)) {
       replyFixedResponse(
           ctx,
           RecordingResponsePreset.extractValidCbidQueryParam(request.uri(), NO_BR_CBID_QUERY_PARAM),
@@ -340,6 +346,32 @@ enum BrotliResponsePresets implements RecordingResponsePreset {
         if (isAcceptableBrotliCoding(item)) {
           return true;
         }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Returns {@code true} when the request matches Node.js {@code fetch()} ({@code undici}) over
+   * plain {@code http://} ({@code User-Agent: node} or {@code undici} with {@code Accept-Encoding:
+   * gzip, deflate} and without {@code br;q=0}), which decompresses {@code Content-Encoding: br}
+   * responses even though {@code undici} only advertises {@code br} on {@code https://} URLs.
+   */
+  @VisibleForTesting
+  static boolean isNodeFetchPlainHttpBrotliClient(
+      String userAgent, List<String> acceptEncodingHeaders) {
+    if (userAgent == null) {
+      return false;
+    }
+    String normalizedAgent = userAgent.trim();
+    if (!Ascii.equalsIgnoreCase(normalizedAgent, "node")
+        && !Ascii.equalsIgnoreCase(normalizedAgent, "undici")) {
+      return false;
+    }
+    for (String headerValue : acceptEncodingHeaders) {
+      String lower = Ascii.toLowerCase(headerValue);
+      if (lower.contains("gzip") && lower.contains("deflate") && !lower.contains("br;q=0")) {
+        return true;
       }
     }
     return false;
