@@ -41,11 +41,11 @@ public final class InteractionPollingServer extends HttpServer {
 
   @Inject
   InteractionPollingServer(
-      @InteractionPollingServerBossGroup EventLoopGroup bossGroup,
+      @InteractionPollingServerBossGroup EventLoopGroup managerPool,
       @InteractionPollingServerWorkerGroup EventLoopGroup workerGroup,
       @InteractionPollingServerPort int port,
       Provider<InteractionPollingHandler> handlerProvider) {
-    super(bossGroup, workerGroup, port);
+    super(managerPool, workerGroup, port);
     this.handlerProvider = handlerProvider;
   }
 

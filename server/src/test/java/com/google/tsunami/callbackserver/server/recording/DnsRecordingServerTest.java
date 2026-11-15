@@ -47,13 +47,13 @@ public final class DnsRecordingServerTest {
   public void module_always_providesWorkerGroup() {
     Injector injector = getInjector();
 
-    EventLoopGroup bossGroup1 =
+    EventLoopGroup workerGroup1 =
         injector.getInstance(Key.get(EventLoopGroup.class, DnsRecordingServerWorkerGroup.class));
-    EventLoopGroup bossGroup2 =
+    EventLoopGroup workerGroup2 =
         injector.getInstance(Key.get(EventLoopGroup.class, DnsRecordingServerWorkerGroup.class));
 
-    assertThat(bossGroup1).isNotNull();
-    assertThat(bossGroup1).isSameInstanceAs(bossGroup2);
+    assertThat(workerGroup1).isNotNull();
+    assertThat(workerGroup1).isSameInstanceAs(workerGroup2);
   }
 
   @Test

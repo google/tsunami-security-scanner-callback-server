@@ -44,6 +44,7 @@ import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.HttpServerKeepAliveHandler;
+import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.ReferenceCountUtil;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -67,7 +68,7 @@ public final class BrotliResponsePresetsTest {
       "11111111111111111111111111111111111111111111111111111111";
 
   private InteractionStore store;
-  private EventLoopGroup bossGroup;
+  private EventLoopGroup managerPool;
   private EventLoopGroup workerGroup;
   private Channel serverChannel;
   private int serverPort;
@@ -83,11 +84,11 @@ public final class BrotliResponsePresetsTest {
     store = injector.getInstance(InteractionStore.class);
     acceptedChannels = new LinkedBlockingQueue<>();
 
-    bossGroup = new NioEventLoopGroup(1);
+    managerPool = new NioEventLoopGroup(1);
     workerGroup = new NioEventLoopGroup(1);
     ServerBootstrap bootstrap =
         new ServerBootstrap()
-            .group(bossGroup, workerGroup)
+            .group(managerPool, workerGroup)
             .channel(NioServerSocketChannel.class)
             .childHandler(
                 new ChannelInitializer<SocketChannel>() {
@@ -95,6 +96,7 @@ public final class BrotliResponsePresetsTest {
                   protected void initChannel(SocketChannel ch) {
                     acceptedChannels.add(ch);
                     ch.pipeline()
+                        .addLast(new ReadTimeoutHandler(10))
                         .addLast(new HttpServerCodec())
                         .addLast(new HttpServerKeepAliveHandler())
                         .addLast(new HttpObjectAggregator(65535))
@@ -107,7 +109,7 @@ public final class BrotliResponsePresetsTest {
 
   @After
   public void tearDownServer() throws Exception {
-    // Close serverChannel before shutting down its boss/worker event-loop groups.
+    // Close serverChannel before shutting down its manager/worker event-loop groups.
     try {
       if (serverChannel != null) {
         serverChannel.close().sync();
@@ -118,8 +120,8 @@ public final class BrotliResponsePresetsTest {
           workerGroup.shutdownGracefully().sync();
         }
       } finally {
-        if (bossGroup != null) {
-          bossGroup.shutdownGracefully().sync();
+        if (managerPool != null) {
+          managerPool.shutdownGracefully().sync();
         }
       }
     }
@@ -303,6 +305,7 @@ public final class BrotliResponsePresetsTest {
     Channel accepted = acceptedChannels.poll(5, SECONDS);
     assertThat(accepted).isNotNull();
     accepted.closeFuture().sync();
+    assertThat(accepted.pipeline().get(ReadTimeoutHandler.class)).isNull();
     assertThat(store.get(FAKE_CBID)).hasSize(1);
   }
 

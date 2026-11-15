@@ -36,6 +36,8 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.timeout.ReadTimeoutException;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Optional;
 
@@ -79,6 +81,13 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
 
   @Override
   protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) {
+    if (!request.decoderResult().isSuccess()) {
+      logger.atFine().withCause(request.decoderResult().cause()).log(
+          "Closing HTTP connection on %s endpoint due to incomplete or malformed HTTP request.",
+          endpointName);
+      ctx.close();
+      return;
+    }
     var stopwatch = Stopwatch.createStarted();
     var clientAddr = requestLogger.logRequestAndGetClientAddr(endpointName, ctx, request);
     try {
@@ -106,6 +115,18 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
         replyInternalError(ctx, stopwatch, ex);
       }
     }
+  }
+
+  @Override
+  public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+    if (cause instanceof ReadTimeoutException || cause instanceof IOException) {
+      logger.atFine().withCause(cause).log(
+          "Closing HTTP connection on %s endpoint due to timeout or I/O error.", endpointName);
+    } else {
+      logger.atWarning().withCause(cause).log(
+          "Unhandled exception on %s HTTP endpoint.", endpointName);
+    }
+    ctx.close();
   }
 
   /**

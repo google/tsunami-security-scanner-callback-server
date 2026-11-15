@@ -47,15 +47,15 @@ public final class InteractionPollingServerTest {
   public void module_always_providesBossGroup() {
     Injector injector = getInjector();
 
-    EventLoopGroup bossGroup1 =
+    EventLoopGroup managerPool1 =
         injector.getInstance(
             Key.get(EventLoopGroup.class, InteractionPollingServerBossGroup.class));
-    EventLoopGroup bossGroup2 =
+    EventLoopGroup managerPool2 =
         injector.getInstance(
             Key.get(EventLoopGroup.class, InteractionPollingServerBossGroup.class));
 
-    assertThat(bossGroup1).isNotNull();
-    assertThat(bossGroup1).isSameInstanceAs(bossGroup2);
+    assertThat(managerPool1).isNotNull();
+    assertThat(managerPool1).isSameInstanceAs(managerPool2);
   }
 
   @Test

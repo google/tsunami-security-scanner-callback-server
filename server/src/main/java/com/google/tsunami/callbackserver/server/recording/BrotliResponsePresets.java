@@ -40,6 +40,7 @@ import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.AsciiString;
 import io.netty.util.concurrent.ScheduledFuture;
 import java.util.List;
@@ -415,6 +416,13 @@ enum BrotliResponsePresets implements RecordingResponsePreset {
     checkNotNull(ctx);
     checkNotNull(beforeTailCallback);
     checkNotNull(onCompleteCallback);
+
+    // Disarm the per-request inbound ReadTimeoutHandler now that the full request has been read;
+    // ZeroChunkStreamer enforces its own STREAM_DEADLINE_SECONDS (30s) outbound deadline and closes
+    // the connection when finished.
+    if (ctx.pipeline().get(ReadTimeoutHandler.class) != null) {
+      ctx.pipeline().remove(ReadTimeoutHandler.class);
+    }
 
     HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
     setCommonSecurityHeaders(response);
