@@ -17,6 +17,7 @@ package com.google.tsunami.callbackserver.server.recording;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.AbstractModule;
 import com.google.inject.Provides;
 import com.google.inject.multibindings.Multibinder;
@@ -30,6 +31,7 @@ import com.google.tsunami.callbackserver.server.recording.Annotations.HttpRecord
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
+import java.time.Duration;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
@@ -41,12 +43,24 @@ public final class HttpRecordingServer extends HttpServer {
 
   @Inject
   HttpRecordingServer(
-      @HttpRecordingServerBossGroup EventLoopGroup bossGroup,
+      @HttpRecordingServerBossGroup EventLoopGroup managerPool,
       @HttpRecordingServerWorkerGroup EventLoopGroup workerGroup,
       @HttpRecordingServerPort int port,
       Provider<HttpRecordingHandler> handlerProvider) {
-    super(bossGroup, workerGroup, port);
+    super(managerPool, workerGroup, port);
     this.handlerProvider = handlerProvider;
+  }
+
+  @VisibleForTesting
+  HttpRecordingServer(
+      EventLoopGroup managerPool,
+      EventLoopGroup workerGroup,
+      int port,
+      Provider<HttpRecordingHandler> handlerProvider,
+      Duration readTimeout,
+      int maxActiveConnections) {
+    super(managerPool, workerGroup, port, readTimeout, maxActiveConnections);
+    this.handlerProvider = checkNotNull(handlerProvider);
   }
 
   @Override

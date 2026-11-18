@@ -33,6 +33,8 @@ import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.timeout.ReadTimeoutException;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.time.Duration;
 import java.util.Optional;
@@ -124,6 +126,26 @@ public final class HttpHandlerTest {
             any(Duration.class),
             eq(HttpResponseStatus.INTERNAL_SERVER_ERROR),
             any(Exception.class));
+  }
+
+  @Test
+  public void exceptionCaught_withReadTimeoutException_closesChannelWithoutResponse() {
+    EmbeddedChannel channel = new EmbeddedChannel(new OkStatusHttpHandler());
+
+    channel.pipeline().fireExceptionCaught(ReadTimeoutException.INSTANCE);
+
+    assertThat(channel.isOpen()).isFalse();
+    assertThat((Object) channel.readOutbound()).isNull();
+  }
+
+  @Test
+  public void exceptionCaught_withIoException_closesChannelWithoutResponse() {
+    EmbeddedChannel channel = new EmbeddedChannel(new OkStatusHttpHandler());
+
+    channel.pipeline().fireExceptionCaught(new IOException("Connection reset by peer"));
+
+    assertThat(channel.isOpen()).isFalse();
+    assertThat((Object) channel.readOutbound()).isNull();
   }
 
   private static FullHttpResponse runRequest(HttpHandler handler) {

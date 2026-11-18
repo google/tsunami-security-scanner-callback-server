@@ -36,6 +36,8 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.timeout.ReadTimeoutException;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.util.Optional;
 
@@ -79,13 +81,17 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
 
   @Override
   protected void channelRead0(ChannelHandlerContext ctx, FullHttpRequest request) {
+    if (!request.decoderResult().isSuccess()) {
+      logger.atFine().withCause(request.decoderResult().cause()).log(
+          "Closing HTTP connection on %s endpoint due to incomplete or malformed HTTP request.",
+          endpointName);
+      ctx.close();
+      return;
+    }
     var stopwatch = Stopwatch.createStarted();
     var clientAddr = requestLogger.logRequestAndGetClientAddr(endpointName, ctx, request);
     try {
-      Optional<String> redirectUrl = getRedirectUrl(request);
-      if (redirectUrl.isPresent()) {
-        handleRequest(request, clientAddr);
-        replyRedirect(ctx, redirectUrl.get(), stopwatch);
+      if (maybeHandleCustomResponse(ctx, request, clientAddr, stopwatch)) {
         return;
       }
       String responseContent = JsonFormat.printer().print(handleRequest(request, clientAddr));
@@ -111,30 +117,44 @@ public abstract class HttpHandler extends SimpleChannelInboundHandler<FullHttpRe
     }
   }
 
-  /**
-   * Returns a redirect target URL if the request should be redirected, or empty otherwise.
-   * By default, returns empty. Handlers supporting redirects can override this.
-   */
-  protected Optional<String> getRedirectUrl(FullHttpRequest request) {
-    return Optional.empty();
+  @Override
+  public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+    if (cause instanceof ReadTimeoutException || cause instanceof IOException) {
+      logger.atFine().withCause(cause).log(
+          "Closing HTTP connection on %s endpoint due to timeout or I/O error.", endpointName);
+    } else {
+      logger.atWarning().withCause(cause).log(
+          "Unhandled exception on %s HTTP endpoint.", endpointName);
+    }
+    ctx.close();
   }
 
-  private void replyRedirect(ChannelHandlerContext ctx, String location, Stopwatch stopwatch) {
-    FullHttpResponse response =
-        new DefaultFullHttpResponse(
-            HttpVersion.HTTP_1_1, HttpResponseStatus.FOUND, Unpooled.EMPTY_BUFFER);
-    response.headers().set(HttpHeaderNames.LOCATION, location);
-    response.headers().set(HttpHeaderNames.CONTENT_LENGTH, 0);
-    ctx.writeAndFlush(response);
-    tcsEventsObserver.onSuccessfulHttpRpc(
-        endpointName, stopwatch.elapsed(), HttpResponseStatus.FOUND);
+  /**
+   * Allows subclasses to write a custom non-JSON HTTP response (including streaming responses)
+   * directly to {@code ctx}. Returns {@code true} if the request was handled, or {@code false} to
+   * fall back to {@link #handleRequest}.
+   *
+   * <p>Subclasses that return {@code true} are responsible for recording RPC completion via {@link
+   * #recordSuccessfulHttpRpc}.
+   */
+  protected boolean maybeHandleCustomResponse(
+      ChannelHandlerContext ctx,
+      FullHttpRequest request,
+      Optional<InetAddress> clientAddr,
+      Stopwatch stopwatch)
+      throws Exception {
+    return false;
+  }
+
+  /** Records a completed HTTP response and its elapsed duration with {@link #tcsEventsObserver}. */
+  protected final void recordSuccessfulHttpRpc(Stopwatch stopwatch, HttpResponseStatus status) {
+    tcsEventsObserver.onSuccessfulHttpRpc(endpointName, stopwatch.elapsed(), status);
   }
 
   private void replyJson(ChannelHandlerContext ctx, String jsonContent, Stopwatch stopwatch) {
     ctx.writeAndFlush(
         buildResponse(HttpResponseStatus.OK, jsonContent, HttpHeaderValues.APPLICATION_JSON));
-    tcsEventsObserver.onSuccessfulHttpRpc(
-        endpointName, stopwatch.elapsed(), HttpResponseStatus.OK);
+    recordSuccessfulHttpRpc(stopwatch, HttpResponseStatus.OK);
   }
 
   private void replyBadRequest(ChannelHandlerContext ctx, Stopwatch stopwatch, Exception ex) {
