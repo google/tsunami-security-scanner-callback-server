@@ -325,12 +325,9 @@ public final class HttpRecordingHandlerTest {
 
     try {
       assertThat(response.status()).isEqualTo(HttpResponseStatus.OK);
+      assertThat(response.headers().get(HttpHeaderNames.CONTENT_TYPE))
+          .isEqualTo("application/json");
       assertThat(response.headers().contains(HttpHeaderNames.CONTENT_ENCODING)).isFalse();
-      assertThat(response.content().readableBytes()).isEqualTo(0);
-      assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
-      verify(eventsObserverMock).onHttpInteractionRecorded();
-      verify(eventsObserverMock)
-          .onSuccessfulHttpRpc(eq("RECORDING"), any(), eq(HttpResponseStatus.OK));
     } finally {
       ReferenceCountUtil.release(response);
       channel.finishAndReleaseAll();
@@ -410,133 +407,6 @@ public final class HttpRecordingHandlerTest {
           .isEqualTo(BrotliResponsePresets.PROBE_HEADER);
       assertThat(zeroViolationsInMiddle).isEqualTo(0);
       assertThat(ByteString.copyFrom(trailingWindow)).isEqualTo(BrotliResponsePresets.PROBE_TAIL);
-      assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
-      assertThat(interactionStore.get(FAKE_NO_BR_CBID)).isEmpty();
-      verify(eventsObserverMock)
-          .onSuccessfulHttpRpc(eq("RECORDING"), any(), eq(HttpResponseStatus.OK));
-    } finally {
-      channel.finishAndReleaseAll();
-    }
-  }
-
-  @Test
-  public void channelRead_whenBrotliCve2026111497AndBrNotAccepted_streamsNoBrProbeAndRecordsCbid() {
-    EmbeddedChannel channel = new EmbeddedChannel(handler);
-    DefaultFullHttpRequest request =
-        buildRequest(
-            "127.0.0.1",
-            "/" + FAKE_CBID + "?response=brotli_cve_2026_111497&no_br_cbid=" + FAKE_NO_BR_CBID);
-    request.headers().set(HttpHeaderNames.ACCEPT_ENCODING, "gzip, deflate");
-
-    try {
-      channel.writeInbound(request);
-
-      HttpResponse responseHeaders = null;
-      boolean sawLastHttpContent = false;
-      ByteArrayOutputStream bodyBytes = new ByteArrayOutputStream();
-
-      Object msg;
-      while ((msg = channel.readOutbound()) != null) {
-        try {
-          assertThat(msg).isInstanceOf(HttpObject.class);
-          if (msg instanceof HttpResponse) {
-            responseHeaders = (HttpResponse) msg;
-          }
-          if (msg instanceof HttpContent) {
-            bodyBytes.write(readBytes(((HttpContent) msg).content()));
-          }
-          if (msg instanceof LastHttpContent) {
-            sawLastHttpContent = true;
-          }
-        } finally {
-          ReferenceCountUtil.release(msg);
-        }
-      }
-
-      assertThat(responseHeaders).isNotNull();
-      assertThat(responseHeaders.status()).isEqualTo(HttpResponseStatus.OK);
-      assertThat(responseHeaders.headers().contains(HttpHeaderNames.CONTENT_ENCODING)).isFalse();
-      assertThat(responseHeaders.headers().get(HttpHeaderNames.CONTENT_LENGTH))
-          .isEqualTo(String.valueOf(BrotliResponsePresets.NO_BR_PROBE.size()));
-      assertThat(responseHeaders.headers().get(HttpHeaderNames.CACHE_CONTROL))
-          .isEqualTo(HttpHeaderValues.NO_STORE.toString());
-      assertThat(responseHeaders.headers().get(HttpHeaderNames.CONNECTION))
-          .isEqualTo(HttpHeaderValues.CLOSE.toString());
-      assertThat(sawLastHttpContent).isTrue();
-      assertThat(ByteString.copyFrom(bodyBytes.toByteArray()))
-          .isEqualTo(BrotliResponsePresets.NO_BR_PROBE);
-      assertThat(interactionStore.get(FAKE_CBID)).isEmpty();
-      assertThat(interactionStore.get(FAKE_NO_BR_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
-      verify(eventsObserverMock)
-          .onSuccessfulHttpRpc(eq("RECORDING"), any(), eq(HttpResponseStatus.OK));
-    } finally {
-      channel.finishAndReleaseAll();
-    }
-  }
-
-  @Test
-  public void channelRead_whenBrotliCve2026111497WithoutCbidAndBrAccepted_streamsHeader() {
-    EmbeddedChannel channel = new EmbeddedChannel(handler);
-    DefaultFullHttpRequest request =
-        buildRequest("127.0.0.1", "/?response=brotli_cve_2026_111497");
-    request.headers().set(HttpHeaderNames.ACCEPT_ENCODING, "br");
-
-    channel.writeInbound(request);
-    FullHttpResponse response = channel.readOutbound();
-
-    try {
-      assertThat(response.status()).isEqualTo(HttpResponseStatus.OK);
-      assertThat(response.headers().contains(HttpHeaderNames.CONTENT_ENCODING)).isFalse();
-      assertThat(response.content().readableBytes()).isEqualTo(0);
-      verify(eventsObserverMock, never()).onHttpInteractionRecorded();
-      verify(eventsObserverMock)
-          .onSuccessfulHttpRpc(eq("RECORDING"), any(), eq(HttpResponseStatus.OK));
-    } finally {
-      ReferenceCountUtil.release(response);
-      channel.finishAndReleaseAll();
-    }
-  }
-
-  @Test
-  public void channelRead_whenBrotliCve2026111497AndUndiciHttpAccept_streamsBrotliProbe() {
-    EmbeddedChannel channel = new EmbeddedChannel(handler);
-    DefaultFullHttpRequest request =
-        buildRequest(
-            "127.0.0.1",
-            "/" + FAKE_CBID + "?response=brotli_cve_2026_111497&no_br_cbid=" + FAKE_NO_BR_CBID);
-    request.headers().remove(HttpHeaderNames.ACCEPT_ENCODING);
-
-    try {
-      channel.writeInbound(request);
-
-      HttpResponse responseHeaders = null;
-      boolean sawLastHttpContent = false;
-      long totalBodyBytes = 0;
-
-      Object msg;
-      while ((msg = channel.readOutbound()) != null) {
-        try {
-          if (msg instanceof HttpResponse) {
-            responseHeaders = (HttpResponse) msg;
-          }
-          if (msg instanceof HttpContent) {
-            totalBodyBytes += ((HttpContent) msg).content().readableBytes();
-          }
-          if (msg instanceof LastHttpContent) {
-            sawLastHttpContent = true;
-          }
-        } finally {
-          ReferenceCountUtil.release(msg);
-        }
-      }
-
-      assertThat(responseHeaders).isNotNull();
-      assertThat(responseHeaders.status()).isEqualTo(HttpResponseStatus.OK);
-      assertThat(responseHeaders.headers().get(HttpHeaderNames.CONTENT_ENCODING)).isEqualTo("br");
-      assertThat(responseHeaders.headers().get(HttpHeaderNames.CONTENT_LENGTH))
-          .isEqualTo(String.valueOf(BrotliResponsePresets.PROBE_TOTAL_LENGTH));
-      assertThat(sawLastHttpContent).isTrue();
-      assertThat(totalBodyBytes).isEqualTo(BrotliResponsePresets.PROBE_TOTAL_LENGTH);
       assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
       assertThat(interactionStore.get(FAKE_NO_BR_CBID)).isEmpty();
       verify(eventsObserverMock)

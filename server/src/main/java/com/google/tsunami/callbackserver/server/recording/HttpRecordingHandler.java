@@ -120,7 +120,7 @@ final class HttpRecordingHandler extends HttpHandler {
             HttpVersion.HTTP_1_1, HttpResponseStatus.FOUND, Unpooled.EMPTY_BUFFER);
     response.headers().set(HttpHeaderNames.LOCATION, location);
     response.headers().set(HttpHeaderNames.CONTENT_LENGTH, 0);
-    ctx.writeAndFlush(response);
+    var unused = ctx.writeAndFlush(response);
     recordSuccessfulHttpRpc(stopwatch, HttpResponseStatus.FOUND);
   }
 
