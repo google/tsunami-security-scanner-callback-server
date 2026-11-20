@@ -550,7 +550,7 @@ enum BrotliResponsePresets implements RecordingResponsePreset {
       ByteBuf tailBuf = Unpooled.wrappedBuffer(PROBE_TAIL.asReadOnlyByteBuffer());
       ctx.writeAndFlush(new DefaultLastHttpContent(tailBuf))
           .addListener(ChannelFutureListener.CLOSE)
-          .addListener(_ -> completeOnce());
+          .addListener(unused -> completeOnce());
     }
 
     private void completeOnce() {

@@ -113,7 +113,8 @@ public final class HttpRecordingHandlerTest {
 
   @Test
   public void handleRequest_whenValidCbidInPath_savesInteraction() {
-    var _ = handler.handleRequest(buildRequest("127.0.0.1", "/" + FAKE_CBID), TEST_CLIENT_ADDRESS);
+    var unused =
+        handler.handleRequest(buildRequest("127.0.0.1", "/" + FAKE_CBID), TEST_CLIENT_ADDRESS);
 
     assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
     verify(eventsObserverMock).onHttpInteractionRecorded();
@@ -121,7 +122,7 @@ public final class HttpRecordingHandlerTest {
 
   @Test
   public void handleRequest_whenValidCbidInPathAndPortInHost_savesInteraction() {
-    var _ =
+    var unused =
         handler.handleRequest(buildRequest("127.0.0.1:8080", "/" + FAKE_CBID), TEST_CLIENT_ADDRESS);
 
     assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
@@ -130,7 +131,7 @@ public final class HttpRecordingHandlerTest {
 
   @Test
   public void handleRequest_whenValidCbidEmbeddedInPath_savesInteraction() {
-    var _ =
+    var unused =
         handler.handleRequest(
             buildRequest("127.0.0.1", "/img%20" + FAKE_CBID), TEST_CLIENT_ADDRESS);
 
@@ -140,7 +141,7 @@ public final class HttpRecordingHandlerTest {
 
   @Test
   public void handleRequest_whenValidCbidInQueryParameter_savesInteraction() {
-    var _ =
+    var unused =
         handler.handleRequest(
             buildRequest("127.0.0.1", "/fetch?url=http://127.0.0.1/" + FAKE_CBID),
             TEST_CLIENT_ADDRESS);
@@ -151,7 +152,8 @@ public final class HttpRecordingHandlerTest {
 
   @Test
   public void handleRequest_whenInvalidCbidInPath_ignoresPathValue() {
-    var _ = handler.handleRequest(buildRequest("127.0.0.1", "/RANDOM_PATH"), TEST_CLIENT_ADDRESS);
+    var unused =
+        handler.handleRequest(buildRequest("127.0.0.1", "/RANDOM_PATH"), TEST_CLIENT_ADDRESS);
 
     assertThat(interactionStore.get("RANDOM_PATH")).isEmpty();
     verify(eventsObserverMock, never()).onHttpInteractionRecorded();
@@ -159,7 +161,7 @@ public final class HttpRecordingHandlerTest {
 
   @Test
   public void handleRequest_whenValidCbidInDomain_savesInteraction() {
-    var _ =
+    var unused =
         handler.handleRequest(buildRequest(FAKE_CBID + ".domain.com", "/"), TEST_CLIENT_ADDRESS);
 
     assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
@@ -168,7 +170,7 @@ public final class HttpRecordingHandlerTest {
 
   @Test
   public void handleRequest_whenValidCbidInDomainWithPort_savesInteraction() {
-    var _ =
+    var unused =
         handler.handleRequest(
             buildRequest(FAKE_CBID + ".domain.com:8080", "/"), TEST_CLIENT_ADDRESS);
 
@@ -178,7 +180,7 @@ public final class HttpRecordingHandlerTest {
 
   @Test
   public void handleRequest_whenInvalidCbidInDomain_ignoresPathValue() {
-    var _ =
+    var unused =
         handler.handleRequest(buildRequest("RANDOM_DOMAIN.domain.com", "/"), TEST_CLIENT_ADDRESS);
 
     assertThat(interactionStore.get("RANDOM_DOMAIN")).isEmpty();
@@ -518,6 +520,116 @@ public final class HttpRecordingHandlerTest {
     } finally {
       channel.finishAndReleaseAll();
     }
+  }
+
+  @Test
+  public void channelRead0_whenRedirectParamTo_returnsFoundAndRecordsInteraction() {
+    String destination = "http://127.0.0.1:5000/api/2.0/mlflow/experiments/list";
+    EmbeddedChannel channel = new EmbeddedChannel(handler);
+    DefaultFullHttpRequest request =
+        buildRequest("127.0.0.1", "/" + FAKE_CBID + "?to=" + destination);
+
+    channel.writeInbound(request);
+    FullHttpResponse response = channel.readOutbound();
+
+    assertThat(response.status()).isEqualTo(HttpResponseStatus.FOUND);
+    assertThat(response.headers().get(HttpHeaderNames.LOCATION)).isEqualTo(destination);
+    assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
+    verify(eventsObserverMock).onHttpInteractionRecorded();
+  }
+
+  @Test
+  public void channelRead0_whenRedirectParamRedirect_returnsFoundAndRecordsInteraction() {
+    String destination = "http://127.0.0.1:5000/api";
+    EmbeddedChannel channel = new EmbeddedChannel(handler);
+    DefaultFullHttpRequest request =
+        buildRequest("127.0.0.1", "/" + FAKE_CBID + "?redirect=" + destination);
+
+    channel.writeInbound(request);
+    FullHttpResponse response = channel.readOutbound();
+
+    assertThat(response.status()).isEqualTo(HttpResponseStatus.FOUND);
+    assertThat(response.headers().get(HttpHeaderNames.LOCATION)).isEqualTo(destination);
+    assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
+    verify(eventsObserverMock).onHttpInteractionRecorded();
+  }
+
+  @Test
+  public void channelRead0_whenNoRedirectParam_returnsOkStatus() {
+    EmbeddedChannel channel = new EmbeddedChannel(handler);
+    DefaultFullHttpRequest request = buildRequest("127.0.0.1", "/" + FAKE_CBID);
+
+    channel.writeInbound(request);
+    FullHttpResponse response = channel.readOutbound();
+
+    assertThat(response.status()).isEqualTo(HttpResponseStatus.OK);
+    assertThat(response.headers().get(HttpHeaderNames.LOCATION)).isNull();
+    assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
+    verify(eventsObserverMock).onHttpInteractionRecorded();
+  }
+
+  @Test
+  public void channelRead0_whenRedirectParamToWithEncodedUrl_returnsDecodedLocation() {
+    String destination = "http://127.0.0.1:5000/api?param1=val1&param2=val2";
+    String encodedDestination =
+        "http%3A%2F%2F127.0.0.1%3A5000%2Fapi%3Fparam1%3Dval1%26param2%3Dval2";
+    EmbeddedChannel channel = new EmbeddedChannel(handler);
+    DefaultFullHttpRequest request =
+        buildRequest("127.0.0.1", "/" + FAKE_CBID + "?to=" + encodedDestination);
+
+    channel.writeInbound(request);
+    FullHttpResponse response = channel.readOutbound();
+
+    assertThat(response.status()).isEqualTo(HttpResponseStatus.FOUND);
+    assertThat(response.headers().get(HttpHeaderNames.LOCATION)).isEqualTo(destination);
+    assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
+    verify(eventsObserverMock).onHttpInteractionRecorded();
+  }
+
+  @Test
+  public void channelRead0_whenRedirectParamIsEmpty_returnsOkStatus() {
+    EmbeddedChannel channel = new EmbeddedChannel(handler);
+    DefaultFullHttpRequest request = buildRequest("127.0.0.1", "/" + FAKE_CBID + "?to=");
+
+    channel.writeInbound(request);
+    FullHttpResponse response = channel.readOutbound();
+
+    assertThat(response.status()).isEqualTo(HttpResponseStatus.OK);
+    assertThat(response.headers().get(HttpHeaderNames.LOCATION)).isNull();
+    assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
+    verify(eventsObserverMock).onHttpInteractionRecorded();
+  }
+
+  @Test
+  public void channelRead0_whenRedirectParamToLocalhost_returnsFoundAndRecordsInteraction() {
+    String destination = "http://localhost:5000/api";
+    EmbeddedChannel channel = new EmbeddedChannel(handler);
+    DefaultFullHttpRequest request =
+        buildRequest("127.0.0.1", "/" + FAKE_CBID + "?to=" + destination);
+
+    channel.writeInbound(request);
+    FullHttpResponse response = channel.readOutbound();
+
+    assertThat(response.status()).isEqualTo(HttpResponseStatus.FOUND);
+    assertThat(response.headers().get(HttpHeaderNames.LOCATION)).isEqualTo(destination);
+    assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
+    verify(eventsObserverMock).onHttpInteractionRecorded();
+  }
+
+  @Test
+  public void channelRead0_whenRedirectParamToUnapprovedHost_returnsOkStatusAndDoesNotRedirect() {
+    String destination = "https://evil.com/phishing";
+    EmbeddedChannel channel = new EmbeddedChannel(handler);
+    DefaultFullHttpRequest request =
+        buildRequest("127.0.0.1", "/" + FAKE_CBID + "?to=" + destination);
+
+    channel.writeInbound(request);
+    FullHttpResponse response = channel.readOutbound();
+
+    assertThat(response.status()).isEqualTo(HttpResponseStatus.OK);
+    assertThat(response.headers().get(HttpHeaderNames.LOCATION)).isNull();
+    assertThat(interactionStore.get(FAKE_CBID)).containsExactly(FAKE_HTTP_INTERACTION);
+    verify(eventsObserverMock).onHttpInteractionRecorded();
   }
 
   private static byte[] readBytes(ByteBuf buf) {

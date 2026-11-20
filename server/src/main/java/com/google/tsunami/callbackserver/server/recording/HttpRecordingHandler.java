@@ -24,19 +24,31 @@ import static com.google.tsunami.callbackserver.common.UrlParser.getQueryParamet
 import static com.google.tsunami.callbackserver.server.common.RequestLogger.maybeGetClientAddrAsString;
 
 import com.google.common.base.Stopwatch;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.flogger.GoogleLogger;
+import com.google.common.net.InetAddresses;
 import com.google.protobuf.Message;
 import com.google.tsunami.callbackserver.proto.HttpInteractionResponse;
 import com.google.tsunami.callbackserver.server.common.HttpHandler;
 import com.google.tsunami.callbackserver.server.common.monitoring.TcsEventsObserver;
 import com.google.tsunami.callbackserver.storage.InteractionStore;
 import com.google.tsunami.callbackserver.storage.InteractionStore.InteractionType;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.QueryStringDecoder;
 import java.net.InetAddress;
+import java.net.URI;
 import java.util.EnumSet;
+import java.util.Locale;
 import java.util.Optional;
 import javax.inject.Inject;
 
@@ -47,6 +59,10 @@ final class HttpRecordingHandler extends HttpHandler {
   private static final ImmutableMap<String, RecordingResponsePreset> RESPONSE_PRESETS =
       EnumSet.allOf(BrotliResponsePresets.class).stream()
           .collect(toImmutableMap(RecordingResponsePreset::paramValue, preset -> preset));
+  private static final ImmutableList<String> REDIRECT_PARAMS =
+      ImmutableList.of("to", "redirect", "url");
+  private static final ImmutableSet<String> APPROVED_REDIRECT_HOSTS =
+      ImmutableSet.of("localhost", "127.0.0.1", "::1", "[::1]");
   private static final GoogleLogger logger = GoogleLogger.forEnclosingClass();
   private final InteractionStore interactionStore;
 
@@ -56,12 +72,74 @@ final class HttpRecordingHandler extends HttpHandler {
     this.interactionStore = interactionStore;
   }
 
+  private static boolean isApprovedRedirectUrl(String urlString) {
+    try {
+      URI uri = URI.create(urlString);
+      String host = uri.getHost();
+      if (isNullOrEmpty(host)) {
+        return false;
+      }
+      String normalizedHost = host.toLowerCase(Locale.ROOT);
+      if (APPROVED_REDIRECT_HOSTS.contains(normalizedHost)) {
+        return true;
+      }
+      if (InetAddresses.isInetAddress(normalizedHost)) {
+        return InetAddresses.forString(normalizedHost).isLoopbackAddress();
+      }
+      return false;
+    } catch (IllegalArgumentException e) {
+      logger.atInfo().withCause(e).log("Failed to parse redirect URL: %s", urlString);
+      return false;
+    }
+  }
+
+  private static Optional<String> getRedirectUrl(FullHttpRequest request) {
+    try {
+      var decoder = new QueryStringDecoder(request.uri());
+      var params = decoder.parameters();
+      for (String paramName : REDIRECT_PARAMS) {
+        var values = params.get(paramName);
+        if (values != null && !values.isEmpty() && !isNullOrEmpty(values.get(0))) {
+          String candidate = values.get(0);
+          if (isApprovedRedirectUrl(candidate)) {
+            return Optional.of(candidate);
+          } else {
+            logger.atInfo().log("Rejecting redirect to unapproved destination: %s", candidate);
+          }
+        }
+      }
+    } catch (IllegalArgumentException e) {
+      logger.atInfo().withCause(e).log("Failed to parse URI for redirect: %s", request.uri());
+    }
+    return Optional.empty();
+  }
+
+  private void replyRedirect(ChannelHandlerContext ctx, String location, Stopwatch stopwatch) {
+    FullHttpResponse response =
+        new DefaultFullHttpResponse(
+            HttpVersion.HTTP_1_1, HttpResponseStatus.FOUND, Unpooled.EMPTY_BUFFER);
+    response.headers().set(HttpHeaderNames.LOCATION, location);
+    response.headers().set(HttpHeaderNames.CONTENT_LENGTH, 0);
+    var unused = ctx.writeAndFlush(response);
+    recordSuccessfulHttpRpc(stopwatch, HttpResponseStatus.FOUND);
+  }
+
   @Override
   protected boolean maybeHandleCustomResponse(
       ChannelHandlerContext ctx,
       FullHttpRequest request,
       Optional<InetAddress> clientAddr,
       Stopwatch stopwatch) {
+    Optional<String> redirectUrl = getRedirectUrl(request);
+    if (redirectUrl.isPresent()) {
+      var url = getUrl(request);
+      extractCbidFromUrl(url)
+          .or(() -> extractCbidFromDomainInHttpProtocol(url))
+          .ifPresent(cbid -> recordHttpInteraction(cbid, clientAddr));
+      replyRedirect(ctx, redirectUrl.get(), stopwatch);
+      return true;
+    }
+
     if (!request.method().equals(HttpMethod.GET)) {
       return false;
     }
